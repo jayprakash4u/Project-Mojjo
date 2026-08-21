@@ -1,7 +1,8 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
-import { Eye, Heart, Plus } from "lucide-react";
+import { Heart, Plus } from "lucide-react";
 import type { Product } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { ProductImage } from "@/components/product/product-image";
@@ -11,7 +12,8 @@ import { useCart } from "@/components/cart/cart-context";
 import { useWishlist } from "@/components/wishlist/wishlist-context";
 import { useToast } from "@/components/ui/toast";
 import { formatPrice } from "@/lib/format";
-import { discountPercent } from "@/lib/products";
+import { defaultUnit, discountPercent, productForUnit } from "@/lib/products";
+import { BuyPerPieceDialog } from "@/components/product/buy-per-piece-dialog";
 import { cn } from "@/lib/utils";
 
 const badgeLabels = {
@@ -25,24 +27,36 @@ const CARD_IMAGE_SIZES = "(min-width: 1280px) 18vw, (min-width: 640px) 30vw, 46v
 
 export interface ProductCardProps {
   product: Product;
-  onQuickView?: (product: Product) => void;
   eagerImage?: boolean;
 }
 
-export function ProductCard({ product, onQuickView, eagerImage = false }: ProductCardProps) {
-  const { addItem, openCart, quantityOf } = useCart();
+export function ProductCard({ product, eagerImage = false }: ProductCardProps) {
+  const { addItem, openCart } = useCart();
   const { has, toggle } = useWishlist();
   const { toast } = useToast();
 
+  // The tile always sells the default unit — the pack. Buying loose opens its
+  // own step, so nothing on the tile can silently change what Add adds.
+  const unit = defaultUnit(product);
+  const pieceUnit = product.units?.find(
+    (candidate) => (candidate.contains ?? 1) === 1 && candidate.id !== unit?.id,
+  );
+  const [pieceDialogOpen, setPieceDialogOpen] = React.useState(false);
+  // What actually goes in the cart: the chosen unit, or the product itself
+  // when it is only sold one way.
+  const purchasable = unit ? productForUnit(product, unit) : product;
+
+  // The wishlist saves the product, not the unit, so it keeps the base id.
   const saved = has(product.id);
-  const inCart = quantityOf(product.id);
   const discount = discountPercent(product);
+  const sizeLabel =
+    unit?.contains && unit.contains > 1 ? `${unit.contains} pcs` : product.volume;
 
   const handleAddToCart = () => {
-    addItem(product);
+    addItem(purchasable);
     toast({
       title: "Added to cart",
-      description: product.title,
+      description: purchasable.title,
       variant: "success",
       action: { label: "View cart", onClick: openCart },
     });
@@ -101,6 +115,12 @@ export function ProductCard({ product, onQuickView, eagerImage = false }: Produc
           </div>
         )}
 
+        {purchasable.rewardCoins > 0 && (
+          <span className="pointer-events-none absolute bottom-2 left-4 rounded-full bg-surface/90 px-1.5 py-0.5 shadow-xs backdrop-blur-sm">
+            <MojjoCoin amount={purchasable.rewardCoins} size="sm" showLabel={false} />
+          </span>
+        )}
+
         {/* z-10 keeps this clickable above the stretched title link below. */}
         <button
           type="button"
@@ -117,40 +137,11 @@ export function ProductCard({ product, onQuickView, eagerImage = false }: Produc
         >
           <Heart className={cn("size-4", saved && "fill-current")} aria-hidden="true" />
         </button>
-
-        {/* Quick view slides up over the image on hover; keyboard users reach
-            it by tabbing, which also reveals it via focus-within. */}
-        {onQuickView && product.inStock && (
-          <button
-            type="button"
-            onClick={() => onQuickView(product)}
-            className={cn(
-              "absolute inset-x-2.5 bottom-0 z-10 hidden h-8 items-center justify-center gap-1.5 rounded-b-md",
-              "bg-primary/90 text-xs font-semibold text-on-primary backdrop-blur-sm",
-              "translate-y-full opacity-0 transition-[transform,opacity] duration-200",
-              "group-hover:translate-y-0 group-hover:opacity-100",
-              "focus-visible:translate-y-0 focus-visible:opacity-100",
-              "lg:flex",
-            )}
-          >
-            <Eye className="size-3.5" aria-hidden="true" />
-            Quick view
-          </button>
-        )}
       </div>
 
       <div className="flex flex-1 flex-col gap-1 p-3">
-        <div className="flex items-center justify-between gap-2">
-          {product.inStock ? <EtaBadge /> : <span />}
-          {product.volume && (
-            <span className="text-2xs text-subtle" data-numeric>
-              {product.volume}
-            </span>
-          )}
-        </div>
-
         <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground">
-          {/* Stretched link: the whole card is clickable, buttons above stay on top. */}
+          {/* Stretched link: the whole card is clickable, controls above stay on top. */}
           <Link
             href={`/products/${product.slug}`}
             className="after:absolute after:inset-0 after:content-['']"
@@ -159,54 +150,77 @@ export function ProductCard({ product, onQuickView, eagerImage = false }: Produc
           </Link>
         </h3>
 
-        {/* Price sits at the bottom of the body so cards in a row align on it
-            regardless of how many lines the title wraps to. */}
-        <div className="mt-auto flex flex-wrap items-baseline gap-x-2 pt-2">
+        {/* One quiet meta line: speed, then how much you get. Volume and pack
+            size are the same idea, so only one of them is ever shown. */}
+        {(product.inStock || sizeLabel) && (
+          <div className="flex items-center gap-1.5">
+            {product.inStock && <EtaBadge />}
+            {sizeLabel && (
+              <span className="truncate text-2xs text-subtle" data-numeric>
+                {sizeLabel}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Price and the way out to loose pieces share a line. Pushed to the
+            bottom so cards in a row align on price however many lines their
+            titles wrap to. */}
+        <div className="mt-auto flex flex-wrap items-baseline gap-x-2 gap-y-0.5 pt-1.5">
           <span className="text-base font-semibold text-foreground" data-numeric>
-            {formatPrice(product.price)}
+            {formatPrice(purchasable.price)}
           </span>
-          {product.originalPrice && (
-            <span className="text-xs text-subtle line-through" data-numeric>
+          {!unit && product.originalPrice && (
+            <span className="text-2xs text-subtle line-through" data-numeric>
               {formatPrice(product.originalPrice)}
             </span>
           )}
+
+          {/* z-10 clears the stretched title link. */}
+          {pieceUnit && product.inStock && (
+            <button
+              type="button"
+              onClick={() => setPieceDialogOpen(true)}
+              aria-label={`Buy ${product.title} per piece, ${formatPrice(pieceUnit.price)} each`}
+              className="relative z-10 ml-auto whitespace-nowrap text-2xs font-semibold text-secondary underline underline-offset-2 transition-colors hover:text-secondary/75"
+            >
+              Per piece <span data-numeric>{formatPrice(pieceUnit.price)}</span>
+            </button>
+          )}
         </div>
 
-        {product.rewardCoins > 0 && (
-          <MojjoCoin amount={product.rewardCoins} size="sm" showLabel={false} />
-        )}
-
-        <div className="relative z-10 mt-2.5">
-          <button
-            type="button"
-            disabled={!product.inStock}
-            onClick={handleAddToCart}
-            className={cn(
-              "flex h-9 w-full items-center justify-center gap-1.5 rounded-md border text-sm font-semibold",
-              "transition-colors duration-200",
-              product.inStock
-                ? "border-secondary text-secondary hover:bg-secondary hover:text-on-secondary"
-                : "border-border text-subtle",
-              "disabled:pointer-events-none",
-            )}
-          >
-            {product.inStock ? (
-              <>
-                <Plus className="size-4" aria-hidden="true" />
-                {inCart > 0 ? (
-                  <>
-                    Add more<span className="sr-only">, {inCart} already in cart</span>
-                  </>
-                ) : (
-                  "Add"
-                )}
-              </>
-            ) : (
-              "Out of stock"
-            )}
-          </button>
+        {/* One button. Quantity is chosen where the decision is made: in the
+            per-piece dialog, or in the cart for anything already added. */}
+        <div className="relative z-10 mt-0.5">
+          {product.inStock ? (
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              className={cn(
+                "flex h-9 w-full items-center justify-center gap-1.5 rounded-md",
+                "bg-secondary text-sm font-semibold text-on-secondary",
+                "transition-colors duration-200 hover:bg-secondary/90",
+              )}
+            >
+              <Plus className="size-4 shrink-0" aria-hidden="true" />
+              Add
+            </button>
+          ) : (
+            <span className="flex h-9 w-full items-center justify-center rounded-md border border-border text-sm font-semibold text-subtle">
+              Out of stock
+            </span>
+          )}
         </div>
       </div>
+
+      {pieceUnit && pieceDialogOpen && (
+        <BuyPerPieceDialog
+          product={product}
+          unit={pieceUnit}
+          open={pieceDialogOpen}
+          onOpenChange={setPieceDialogOpen}
+        />
+      )}
     </article>
   );
 }

@@ -8,6 +8,7 @@ import { Sheet, SheetBody, SheetFooter, SheetHeader, SheetTitle } from "@/compon
 import { categories, countProductsInCategory } from "@/data/mock/categories";
 import { PRICE_RANGES } from "@/lib/products";
 import { useQueryParams } from "@/hooks/use-query-params";
+import { cn } from "@/lib/utils";
 
 const FILTER_KEYS = ["category", "price", "inStock", "onSale"];
 
@@ -88,9 +89,18 @@ function FilterControls({ hideCategories = false }: { hideCategories?: boolean }
 export interface ProductFiltersProps {
   /** Category page already scopes by category, so that group is hidden there. */
   hideCategories?: boolean;
+  /**
+   * "sidebar" is the desktop rail with a sheet fallback on small screens.
+   * "button" is the trigger alone, for pages whose left edge is already spoken
+   * for — the category rail — and which surface filters in a top row instead.
+   */
+  variant?: "sidebar" | "button";
 }
 
-export function ProductFilters({ hideCategories = false }: ProductFiltersProps) {
+export function ProductFilters({
+  hideCategories = false,
+  variant = "sidebar",
+}: ProductFiltersProps) {
   const [open, setOpen] = React.useState(false);
   const { searchParams, getList } = useQueryParams();
 
@@ -102,7 +112,7 @@ export function ProductFilters({ hideCategories = false }: ProductFiltersProps) 
 
   return (
     <>
-      <aside className="hidden w-60 shrink-0 lg:block">
+      <aside className={cn("hidden w-60 shrink-0", variant === "sidebar" && "lg:block")}>
         <div className="sticky top-24 rounded-xl border border-border bg-surface p-4 shadow-xs">
           <h2 className="mb-4 border-b border-border pb-3 text-sm font-semibold uppercase tracking-wide text-foreground">
             Filters
@@ -111,7 +121,7 @@ export function ProductFilters({ hideCategories = false }: ProductFiltersProps) 
         </div>
       </aside>
 
-      <div className="lg:hidden">
+      <div className={cn(variant === "sidebar" && "lg:hidden")}>
         <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
           <SlidersHorizontal aria-hidden="true" />
           Filters

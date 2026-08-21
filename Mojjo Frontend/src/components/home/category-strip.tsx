@@ -12,7 +12,7 @@ import { categories } from "@/data/mock/categories";
 type Tile = { label: string; href: Route; image: string };
 
 const img = (label: string) =>
-  `https://placehold.co/200x200/efece3/0b1f2a?font=source-sans-pro&text=${encodeURIComponent(label)}`;
+  `https://placehold.co/200x200/efece3/0b1f2a.png?font=source-sans-pro&text=${encodeURIComponent(label)}`;
 
 /** Top-level categories, then each one's subcategories, flattened into one rail. */
 const tiles: Tile[] = categories.flatMap((category) => [
