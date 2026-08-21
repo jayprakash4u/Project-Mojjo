@@ -16,8 +16,9 @@ export type Category = {
   subcategories?: Subcategory[];
 };
 
+// `.png` rather than the default SVG, which next/image will not optimise.
 const img = (label: string) =>
-  `https://placehold.co/600x750/f2efe6/0b1f2a?font=source-sans-pro&text=${encodeURIComponent(label)}`;
+  `https://placehold.co/600x750/f2efe6/0b1f2a.png?font=source-sans-pro&text=${encodeURIComponent(label)}`;
 
 export const categories: Category[] = [
   {
@@ -47,6 +48,14 @@ export const categories: Category[] = [
     tagline: "Familiar brands, delivered",
     description: "Everyday brands in full-flavour, light and menthol, sold to over-18s only.",
     ageRestricted: true,
+    subcategories: [
+      { name: "Cigarette", slug: "cigarette" },
+      { name: "Tobacco Sticks", slug: "tobacco-sticks" },
+      { name: "Nicotine Pouch", slug: "nicotine-pouch" },
+      { name: "Lighter", slug: "lighter" },
+      { name: "Mouth Freshener", slug: "mouth-freshener" },
+      { name: "Smoking Accessories", slug: "smoking-accessories" },
+    ],
   },
   {
     id: "snacks",
@@ -72,8 +81,10 @@ export const categories: Category[] = [
     description:
       "Chilled colas, sparkling water, energy drinks and the tonic and soda that finish a long drink.",
     subcategories: [
+      { name: "Fruit Juice", slug: "fruit-juice" },
       { name: "Soft Drinks", slug: "soft-drinks" },
       { name: "Water", slug: "water" },
+      { name: "Milkshakes", slug: "milkshakes" },
       { name: "Energy Drinks", slug: "energy-drinks" },
       { name: "Mixers", slug: "mixers" },
     ],
@@ -91,6 +102,17 @@ export function getSubcategory(category: Category, slug: string): Subcategory | 
 /** Counts come from the catalogue itself, so they can never drift out of sync. */
 export function countProductsInCategory(slug: string): number {
   return products.filter((product) => product.category === slug).length;
+}
+
+/**
+ * Tile artwork for a subcategory: the first product filed under it. Derived
+ * rather than stored, so it can never drift from the catalogue and needs no
+ * extra field when the API replaces this module.
+ */
+export function getSubcategoryImage(categorySlug: string, subSlug: string): string | undefined {
+  return products.find(
+    (product) => product.category === categorySlug && product.subcategory === subSlug,
+  )?.image;
 }
 
 export function countProductsInSubcategory(categorySlug: string, subSlug: string): number {

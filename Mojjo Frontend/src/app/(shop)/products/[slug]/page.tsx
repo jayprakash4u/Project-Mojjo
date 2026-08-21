@@ -113,6 +113,11 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
                 )}
 
                 <div className="flex flex-wrap items-baseline gap-3 border-b border-border pb-4">
+                  {/* Sold more than one way, so this headline quotes the cheapest
+                      unit; the selector below carries the exact per-unit price. */}
+                  {product.units && product.units.length > 1 && (
+                    <span className="text-sm text-muted">From</span>
+                  )}
                   <span className="text-3xl font-semibold text-foreground" data-numeric>
                     {formatPrice(product.price)}
                   </span>

@@ -10,6 +10,8 @@ import { useCart, MAX_QUANTITY_PER_ITEM } from "@/components/cart/cart-context";
 import { useWishlist } from "@/components/wishlist/wishlist-context";
 import { useToast } from "@/components/ui/toast";
 import { pluralize } from "@/lib/format";
+import { productForUnit } from "@/lib/products";
+import { UnitSelector } from "@/components/product/unit-selector";
 import { cn } from "@/lib/utils";
 
 /** The interactive island on the otherwise server-rendered product page. */
@@ -20,14 +22,19 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
   const { toast } = useToast();
 
   const [quantity, setQuantity] = React.useState(1);
+  const [unitId, setUnitId] = React.useState(product.units?.[0]?.id);
+  const unit = product.units?.find((candidate) => candidate.id === unitId);
+  const purchasable = unit ? productForUnit(product, unit) : product;
+
+  // Saving is per product, not per unit, so this keeps the base id.
   const saved = has(product.id);
-  const inCart = quantityOf(product.id);
+  const inCart = quantityOf(purchasable.id);
 
   const handleAdd = () => {
-    addItem(product, quantity);
+    addItem(purchasable, quantity);
     toast({
       title: `${pluralize(quantity, "item")} added to cart`,
-      description: product.title,
+      description: purchasable.title,
       variant: "success",
       action: { label: "View cart", onClick: openCart },
     });
@@ -35,19 +42,32 @@ export function ProductPurchasePanel({ product }: { product: Product }) {
 
   // "Buy now" is the marketplace express lane: add, then skip the cart.
   const handleBuyNow = () => {
-    addItem(product, quantity);
+    addItem(purchasable, quantity);
     router.push("/checkout");
   };
 
   return (
     <div className="flex flex-col gap-4">
+      {product.units && product.units.length > 1 && unitId && (
+        <div className="flex flex-col gap-2">
+          <span className="text-sm text-muted">Buy by</span>
+          <UnitSelector
+            units={product.units}
+            value={unitId}
+            onChange={setUnitId}
+            label={product.title}
+            layout="segmented"
+          />
+        </div>
+      )}
+
       <div className="flex items-center gap-3">
         <span className="text-sm text-muted">Quantity</span>
         <QuantityStepper
           value={quantity}
           onChange={setQuantity}
           max={MAX_QUANTITY_PER_ITEM}
-          itemLabel={product.title}
+          itemLabel={purchasable.title}
         />
       </div>
 

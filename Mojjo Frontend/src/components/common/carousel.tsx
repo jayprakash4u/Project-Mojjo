@@ -8,9 +8,11 @@ export interface CarouselProps {
   children: React.ReactNode;
   /** Accessible name for the scrollable region. */
   label: string;
-  /** Tailwind width classes applied to each slide. */
+  /** Tailwind width classes applied to each slide. Ignored when `rows` is 2. */
   itemClassName?: string;
   className?: string;
+  /** How many rows deep the rail runs. Two stacks the slides into pairs. */
+  rows?: 1 | 2;
 }
 
 /**
@@ -20,7 +22,7 @@ export interface CarouselProps {
  * scrolling all work natively; the arrows are a pointer affordance layered on
  * top and are hidden from assistive tech, which uses the scroll region itself.
  */
-export function Carousel({ children, label, itemClassName, className }: CarouselProps) {
+export function Carousel({ children, label, itemClassName, className, rows = 1 }: CarouselProps) {
   const railRef = React.useRef<HTMLUListElement>(null);
   const [atStart, setAtStart] = React.useState(true);
   const [atEnd, setAtEnd] = React.useState(true);
@@ -79,14 +81,23 @@ export function Carousel({ children, label, itemClassName, className }: Carousel
         tabIndex={0}
         role="group"
         aria-label={label}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-1 scrollbar-none sm:gap-5"
+        className={cn(
+          "snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-1 scrollbar-none sm:gap-5",
+          // Two rows becomes a column-flow grid: the track sizes each column, so
+          // slides keep their one-row width and the stacked pair stays aligned.
+          rows === 2
+            ? "grid grid-flow-col grid-rows-2 auto-cols-[46%] sm:auto-cols-[31%] lg:auto-cols-[23.5%] xl:auto-cols-[19%]"
+            : "flex",
+        )}
       >
         {React.Children.map(children, (child, index) => (
           <li
             key={index}
             className={cn(
-              "shrink-0 snap-start",
-              itemClassName ?? "w-[46%] sm:w-[31%] lg:w-[23.5%] xl:w-[19%]",
+              "snap-start",
+              rows === 2
+                ? null
+                : ["shrink-0", itemClassName ?? "w-[46%] sm:w-[31%] lg:w-[23.5%] xl:w-[19%]"],
             )}
           >
             {child}

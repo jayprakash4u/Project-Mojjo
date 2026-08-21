@@ -20,7 +20,6 @@ export default function HomePage() {
     products.filter((product) => product.rating >= 4.3 && product.inStock),
     "popular",
   ).slice(0, 10);
-  const newIn = sortProducts(products.filter((product) => product.inStock), "newest").slice(0, 10);
 
   const byCategory = (slug: string) =>
     products.filter((product) => product.category === slug && product.inStock).slice(0, 10);
@@ -39,7 +38,7 @@ export default function HomePage() {
       <CategoryShowcase />
 
       <ProductShowcase
-        title="Popular right now"
+        title="Popular Now"
         description="What people in your area are ordering tonight."
         products={popular}
         action={{ label: "Browse everything", href: "/products" }}
@@ -47,27 +46,24 @@ export default function HomePage() {
       />
 
       <ProductShowcase
-        title="Whisky, wine & beer"
+        title="Hard Drinks & Liquors"
         products={byCategory("alcohol")}
         action={{ label: "All alcohol", href: "/categories/alcohol" }}
+        rows={2}
       />
 
       <ProductShowcase
-        title="Snacks to go with it"
+        title="Snacks"
         products={byCategory("snacks")}
         action={{ label: "All snacks", href: "/categories/snacks" }}
+        rows={2}
       />
 
       <ProductShowcase
-        title="Cold drinks & mixers"
+        title="Drinks"
         products={byCategory("cold-drinks")}
         action={{ label: "All cold drinks", href: "/categories/cold-drinks" }}
-      />
-
-      <ProductShowcase
-        title="New in"
-        products={newIn}
-        action={{ label: "Browse everything", href: "/products" }}
+        rows={2}
       />
 
       <WhyMojjo />

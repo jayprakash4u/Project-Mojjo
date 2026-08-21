@@ -11,6 +11,8 @@ export interface ProductShowcaseProps {
   action?: { label: string; href: Route };
   /** Marks the first few images as LCP candidates. */
   eagerFirstRow?: boolean;
+  /** How many rows deep the rail runs. */
+  rows?: 1 | 2;
 }
 
 /**
@@ -26,13 +28,14 @@ export function ProductShowcase({
   products,
   action,
   eagerFirstRow = false,
+  rows = 1,
 }: ProductShowcaseProps) {
   if (products.length === 0) return null;
 
   return (
     <Section title={title} description={description} action={action} flush>
       <div className="px-5 sm:px-6">
-        <Carousel label={title}>
+        <Carousel label={title} rows={rows}>
           {products.map((product, index) => (
             <ProductCard
               key={product.id}

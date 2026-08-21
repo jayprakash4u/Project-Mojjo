@@ -66,7 +66,7 @@ export function Hero() {
 
             <div className="relative hidden aspect-4/3 overflow-hidden rounded-lg lg:block">
               <Image
-                src="https://placehold.co/800x600/16323f/c08b32?font=source-sans-pro&text=Mojjo"
+                src="https://placehold.co/800x600/16323f/c08b32.png?font=source-sans-pro&text=Mojjo"
                 alt="A selection of spirits, snacks and cold drinks available from Mojjo"
                 fill
                 sizes="40vw"
