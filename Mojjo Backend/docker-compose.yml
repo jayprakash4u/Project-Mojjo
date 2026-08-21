@@ -14,9 +14,9 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:5000
-      - ConnectionStrings__DefaultConnection=Server=mojjo-db,1433;Database=MojjoDb;User Id=sa;Password=YourStrong@Passw0rd2026!;TrustServerCertificate=True;MultipleActiveResultSets=true;
+      - ConnectionStrings__DefaultConnection=Server=mojjo-db,1433;Database=MojjoDb;User Id=sa;Password=${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env};TrustServerCertificate=True;MultipleActiveResultSets=true;
       - ConnectionStrings__Redis=mojjo-redis:6379,abortConnect=false
-      - JwtSettings__Secret=YourProductionSuperSecretKeyMin32Chars2026!#
+      - JwtSettings__Secret=${JWT_SECRET:?set JWT_SECRET in .env}
       - JwtSettings__Issuer=Mojjo.Api
       - JwtSettings__Audience=Mojjo.Client
       - JwtSettings__ExpiryMinutes=15
@@ -52,14 +52,14 @@ services:
       - "1433:1433"
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=YourStrong@Passw0rd2026!
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
       - MSSQL_PID=Express
     volumes:
       - mojjo_db_data:/var/opt/mssql
     networks:
       - mojjo-network
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd2026!' -C -Q 'SELECT 1' || exit 1"]
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
