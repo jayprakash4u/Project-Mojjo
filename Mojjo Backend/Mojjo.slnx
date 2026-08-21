@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Mojjo.Api/Mojjo.Api.csproj" />
+    <Project Path="src/Mojjo.Application/Mojjo.Application.csproj" />
+    <Project Path="src/Mojjo.Domain/Mojjo.Domain.csproj" />
+    <Project Path="src/Mojjo.Infrastructure/Mojjo.Infrastructure.csproj" />
+  </Folder>
+</Solution>

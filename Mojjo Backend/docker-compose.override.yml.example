@@ -1,0 +1,11 @@
+# =====================================================================
+# Local Development Overrides Example
+# Copy this file to 'docker-compose.override.yml' for local dev tweaks
+# =====================================================================
+services:
+  mojjo-api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      # Mount local uploads for instant inspection during development
+      - ./src/Mojjo.Api/wwwroot/uploads:/app/wwwroot/uploads

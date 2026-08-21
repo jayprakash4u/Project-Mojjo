@@ -1,0 +1,107 @@
+services:
+  # =====================================================================
+  # 1. Mojjo Backend REST API & WebSockets (.NET 10)
+  # =====================================================================
+  mojjo-api:
+    container_name: mojjo-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mojjo-api:latest
+    restart: unless-stopped
+    ports:
+      - "5177:5000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+      - ConnectionStrings__DefaultConnection=Server=mojjo-db,1433;Database=MojjoDb;User Id=sa;Password=YourStrong@Passw0rd2026!;TrustServerCertificate=True;MultipleActiveResultSets=true;
+      - ConnectionStrings__Redis=mojjo-redis:6379,abortConnect=false
+      - JwtSettings__Secret=YourProductionSuperSecretKeyMin32Chars2026!#
+      - JwtSettings__Issuer=Mojjo.Api
+      - JwtSettings__Audience=Mojjo.Client
+      - JwtSettings__ExpiryMinutes=15
+      - StorageSettings__CdnBaseUrl=http://localhost:5177
+      - StorageSettings__UploadDirectory=wwwroot/uploads
+      - AllowedOrigins__0=http://localhost:3000
+      - AllowedOrigins__1=http://127.0.0.1:3000
+    depends_on:
+      mojjo-db:
+        condition: service_healthy
+      mojjo-redis:
+        condition: service_healthy
+    volumes:
+      - mojjo_logs:/app/logs
+      - mojjo_uploads:/app/wwwroot/uploads
+    networks:
+      - mojjo-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # =====================================================================
+  # 2. Microsoft SQL Server 2022 Database
+  # =====================================================================
+  mojjo-db:
+    container_name: mojjo-db
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=YourStrong@Passw0rd2026!
+      - MSSQL_PID=Express
+    volumes:
+      - mojjo_db_data:/var/opt/mssql
+    networks:
+      - mojjo-network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd2026!' -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # =====================================================================
+  # 3. Redis Distributed In-Memory Cache (v7.4 Alpine)
+  # =====================================================================
+  mojjo-redis:
+    container_name: mojjo-redis
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - mojjo_redis_data:/data
+    networks:
+      - mojjo-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+# =====================================================================
+# Persistent Volume Mounts
+# =====================================================================
+volumes:
+  mojjo_db_data:
+    name: mojjo_db_data
+  mojjo_redis_data:
+    name: mojjo_redis_data
+  mojjo_logs:
+    name: mojjo_logs
+  mojjo_uploads:
+    name: mojjo_uploads
+
+# =====================================================================
+# Isolated Bridge Network
+# =====================================================================
+networks:
+  mojjo-network:
+    name: mojjo-network
+    driver: bridge

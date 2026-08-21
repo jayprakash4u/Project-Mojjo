@@ -1,0 +1,11 @@
+import type { Metadata } from "next";
+import { ProfileForm } from "@/components/account/profile-form";
+
+export const metadata: Metadata = {
+  title: "Profile",
+  robots: { index: false, follow: false },
+};
+
+export default function ProfilePage() {
+  return <ProfileForm />;
+}

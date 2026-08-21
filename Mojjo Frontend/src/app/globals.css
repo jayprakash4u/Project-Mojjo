@@ -1,0 +1,278 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Mojjo design tokens
+
+   Raw values live in :root. Everything the UI consumes goes
+   through @theme so Tailwind generates real utilities (bg-surface, text-muted,
+   rounded-lg, shadow-md, ...) instead of arbitrary bg-[var(--x)] escapes.
+--------------------------------------------------------------------------- */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-on-primary-muted: var(--on-primary-muted);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-secondary-soft: var(--secondary-soft);
+  --color-on-secondary: var(--on-secondary);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-error: var(--error);
+  --color-error-soft: var(--error-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.375rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.625rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.875rem;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 2.125rem;
+  --text-3xl: 2.25rem;
+  --text-3xl--line-height: 2.5rem;
+  --text-4xl: 2.875rem;
+  --text-4xl--line-height: 3.125rem;
+  --text-5xl: 3.75rem;
+  --text-5xl--line-height: 1.05;
+
+  --tracking-tighter: -0.035em;
+  --tracking-tight: -0.02em;
+  --tracking-wide: 0.02em;
+  --tracking-widest: 0.16em;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+
+  --shadow-xs: var(--elevation-1);
+  --shadow-sm: var(--elevation-2);
+  --shadow-md: var(--elevation-3);
+  --shadow-lg: var(--elevation-4);
+  --shadow-xl: var(--elevation-5);
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  --animate-fade-in: fade-in 0.2s var(--ease-out-quint) both;
+  --animate-scale-in: scale-in 0.18s var(--ease-out-quint) both;
+  --animate-slide-in-right: slide-in-right 0.3s var(--ease-out-quint) both;
+  --animate-slide-in-left: slide-in-left 0.3s var(--ease-out-quint) both;
+  --animate-slide-up: slide-up 0.28s var(--ease-out-quint) both;
+  --animate-toast-in: toast-in 0.3s var(--ease-spring) both;
+}
+
+:root {
+  color-scheme: light;
+
+  --background: #f7f5ef;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-sunken: #efece3;
+  --foreground: #141c22;
+  --muted: #5d6a73;
+  --subtle: #8b969d;
+  --border: #e4e2d9;
+  --border-strong: #cfccc0;
+
+  --primary: #0b1f2a;
+  --primary-hover: #16323f;
+  --on-primary: #f7f5ef;
+  --on-primary-muted: #9aa8b0;
+
+  --secondary: #0f766e;
+  --secondary-hover: #0c5f59;
+  --secondary-soft: #e6f2f0;
+  --on-secondary: #ffffff;
+
+  --accent: #c08b32;
+  --accent-hover: #a97826;
+  --accent-soft: #f8efdd;
+  --on-accent: #2a1d06;
+
+  --success: #157a58;
+  --success-soft: #e2f2ec;
+  --warning: #a8680b;
+  --warning-soft: #fbeeda;
+  --error: #b93b3b;
+  --error-soft: #fbe9e9;
+  --info: #2563a8;
+  --info-soft: #e6eff9;
+
+  --elevation-1: 0 1px 2px 0 rgb(11 31 42 / 0.05);
+  --elevation-2: 0 1px 3px 0 rgb(11 31 42 / 0.07), 0 1px 2px -1px rgb(11 31 42 / 0.05);
+  --elevation-3: 0 4px 12px -2px rgb(11 31 42 / 0.09), 0 2px 4px -2px rgb(11 31 42 / 0.05);
+  --elevation-4: 0 12px 28px -6px rgb(11 31 42 / 0.13), 0 4px 8px -4px rgb(11 31 42 / 0.06);
+  --elevation-5: 0 24px 48px -12px rgb(11 31 42 / 0.2);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--secondary);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--secondary) 22%, transparent);
+  }
+
+  /* Tabular figures stop prices and totals jittering as quantities change. */
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@utility container-page {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 80rem;
+  padding-inline: 1rem;
+
+  @media (width >= 40rem) {
+    padding-inline: 1.5rem;
+  }
+
+  @media (width >= 64rem) {
+    padding-inline: 2rem;
+  }
+}
+
+/* Section rhythm: one knob instead of `py-16 sm:py-20` scattered everywhere. */
+@utility section-y {
+  padding-block: 3.5rem;
+
+  @media (width >= 40rem) {
+    padding-block: 5rem;
+  }
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

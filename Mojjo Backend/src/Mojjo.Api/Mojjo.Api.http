@@ -1,0 +1,6 @@
+@Mojjo.Api_HostAddress = http://localhost:5177
+
+GET {{Mojjo.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
