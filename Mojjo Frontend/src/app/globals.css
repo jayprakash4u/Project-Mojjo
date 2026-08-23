@@ -98,47 +98,47 @@
 }
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  --background: #f7f5ef;
-  --surface: #ffffff;
-  --surface-raised: #ffffff;
-  --surface-sunken: #efece3;
-  --foreground: #141c22;
-  --muted: #5d6a73;
-  --subtle: #8b969d;
-  --border: #e4e2d9;
-  --border-strong: #cfccc0;
+  --background: #06151f;
+  --surface: #0b1f2a;
+  --surface-raised: #102938;
+  --surface-sunken: #040e15;
+  --foreground: #f8fafc;
+  --muted: #94a3b8;
+  --subtle: #64748b;
+  --border: #173647;
+  --border-strong: #224b61;
 
-  --primary: #0b1f2a;
-  --primary-hover: #16323f;
-  --on-primary: #f7f5ef;
-  --on-primary-muted: #9aa8b0;
+  --primary: #14b8a6;
+  --primary-hover: #2dd4bf;
+  --on-primary: #040e15;
+  --on-primary-muted: #134e4a;
 
-  --secondary: #0f766e;
-  --secondary-hover: #0c5f59;
-  --secondary-soft: #e6f2f0;
+  --secondary: #0d9488;
+  --secondary-hover: #14b8a6;
+  --secondary-soft: #134e4a33;
   --on-secondary: #ffffff;
 
-  --accent: #c08b32;
-  --accent-hover: #a97826;
-  --accent-soft: #f8efdd;
-  --on-accent: #2a1d06;
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+  --accent-soft: #78350f33;
+  --on-accent: #040e15;
 
-  --success: #157a58;
-  --success-soft: #e2f2ec;
-  --warning: #a8680b;
-  --warning-soft: #fbeeda;
-  --error: #b93b3b;
-  --error-soft: #fbe9e9;
-  --info: #2563a8;
-  --info-soft: #e6eff9;
+  --success: #10b981;
+  --success-soft: #064e3b33;
+  --warning: #f59e0b;
+  --warning-soft: #78350f33;
+  --error: #f43f5e;
+  --error-soft: #88133733;
+  --info: #38bdf8;
+  --info-soft: #0c4a6e33;
 
-  --elevation-1: 0 1px 2px 0 rgb(11 31 42 / 0.05);
-  --elevation-2: 0 1px 3px 0 rgb(11 31 42 / 0.07), 0 1px 2px -1px rgb(11 31 42 / 0.05);
-  --elevation-3: 0 4px 12px -2px rgb(11 31 42 / 0.09), 0 2px 4px -2px rgb(11 31 42 / 0.05);
-  --elevation-4: 0 12px 28px -6px rgb(11 31 42 / 0.13), 0 4px 8px -4px rgb(11 31 42 / 0.06);
-  --elevation-5: 0 24px 48px -12px rgb(11 31 42 / 0.2);
+  --elevation-1: 0 1px 3px 0 rgb(0 0 0 / 0.4);
+  --elevation-2: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5);
+  --elevation-3: 0 10px 15px -3px rgb(0 0 0 / 0.6), 0 4px 6px -4px rgb(0 0 0 / 0.6);
+  --elevation-4: 0 20px 25px -5px rgb(0 0 0 / 0.7), 0 8px 10px -6px rgb(0 0 0 / 0.7);
+  --elevation-5: 0 25px 50px -12px rgb(0 0 0 / 0.85);
 }
 
 @layer base {

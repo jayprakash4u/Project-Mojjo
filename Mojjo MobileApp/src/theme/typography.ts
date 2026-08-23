@@ -1,0 +1,130 @@
+import { TextStyle, Platform } from 'react-native';
+
+const sansFont = Platform.select({
+  ios: 'System',
+  android: 'Roboto',
+  default: 'System',
+});
+
+export const typography = {
+  sizes: {
+    '2xs': 10,
+    xs: 12,
+    sm: 14,
+    base: 16,
+    lg: 18,
+    xl: 20,
+    '2xl': 24,
+    '3xl': 30,
+    '4xl': 36,
+  },
+  lineHeights: {
+    '2xs': 14,
+    xs: 16,
+    sm: 20,
+    base: 24,
+    lg: 26,
+    xl: 28,
+    '2xl': 32,
+    '3xl': 38,
+    '4xl': 44,
+  },
+  weights: {
+    regular: '400' as TextStyle['fontWeight'],
+    medium: '500' as TextStyle['fontWeight'],
+    semibold: '600' as TextStyle['fontWeight'],
+    bold: '700' as TextStyle['fontWeight'],
+    extrabold: '800' as TextStyle['fontWeight'],
+  },
+  letterSpacing: {
+    tighter: -0.8,
+    tight: -0.4,
+    normal: 0,
+    wide: 0.4,
+    widest: 1.2,
+  },
+  presets: {
+    h1: {
+      fontFamily: sansFont,
+      fontSize: 30,
+      lineHeight: 36,
+      fontWeight: '700' as TextStyle['fontWeight'],
+      letterSpacing: -0.8,
+    },
+    h2: {
+      fontFamily: sansFont,
+      fontSize: 24,
+      lineHeight: 30,
+      fontWeight: '700' as TextStyle['fontWeight'],
+      letterSpacing: -0.4,
+    },
+    h3: {
+      fontFamily: sansFont,
+      fontSize: 20,
+      lineHeight: 26,
+      fontWeight: '600' as TextStyle['fontWeight'],
+      letterSpacing: -0.2,
+    },
+    h4: {
+      fontFamily: sansFont,
+      fontSize: 18,
+      lineHeight: 24,
+      fontWeight: '600' as TextStyle['fontWeight'],
+    },
+    bodyLarge: {
+      fontFamily: sansFont,
+      fontSize: 18,
+      lineHeight: 26,
+      fontWeight: '400' as TextStyle['fontWeight'],
+    },
+    body: {
+      fontFamily: sansFont,
+      fontSize: 15,
+      lineHeight: 22,
+      fontWeight: '400' as TextStyle['fontWeight'],
+    },
+    bodyMedium: {
+      fontFamily: sansFont,
+      fontSize: 15,
+      lineHeight: 22,
+      fontWeight: '500' as TextStyle['fontWeight'],
+    },
+    bodyBold: {
+      fontFamily: sansFont,
+      fontSize: 15,
+      lineHeight: 22,
+      fontWeight: '700' as TextStyle['fontWeight'],
+    },
+    caption: {
+      fontFamily: sansFont,
+      fontSize: 12,
+      lineHeight: 16,
+      fontWeight: '400' as TextStyle['fontWeight'],
+    },
+    captionBold: {
+      fontFamily: sansFont,
+      fontSize: 12,
+      lineHeight: 16,
+      fontWeight: '600' as TextStyle['fontWeight'],
+    },
+    price: {
+      fontFamily: sansFont,
+      fontSize: 17,
+      lineHeight: 22,
+      fontWeight: '700' as TextStyle['fontWeight'],
+    },
+    priceLarge: {
+      fontFamily: sansFont,
+      fontSize: 24,
+      lineHeight: 28,
+      fontWeight: '800' as TextStyle['fontWeight'],
+    },
+    badge: {
+      fontFamily: sansFont,
+      fontSize: 11,
+      lineHeight: 14,
+      fontWeight: '700' as TextStyle['fontWeight'],
+      letterSpacing: 0.3,
+    },
+  },
+};
