@@ -60,10 +60,10 @@ export const typography = {
     },
     h3: {
       fontFamily: sansFont,
-      fontSize: 20,
-      lineHeight: 26,
-      fontWeight: '600' as TextStyle['fontWeight'],
-      letterSpacing: -0.2,
+      fontSize: 22,
+      lineHeight: 27,
+      fontWeight: '700' as TextStyle['fontWeight'],
+      letterSpacing: 0,
     },
     h4: {
       fontFamily: sansFont,

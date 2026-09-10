@@ -12,7 +12,10 @@ export interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({
   children,
-  initialMode = 'system',
+  // Always start in light mode regardless of the device/browser's system
+  // preference. Pass initialMode="system" explicitly to opt back into
+  // following the OS appearance.
+  initialMode = 'light',
 }) => {
   const systemColorScheme = useColorScheme();
   const [mode, setMode] = useState<ThemeMode>(initialMode);

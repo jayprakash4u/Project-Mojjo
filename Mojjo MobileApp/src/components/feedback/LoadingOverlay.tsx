@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, ActivityIndicator, StyleSheet, Modal } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useTheme } from '../../theme';
 import { Text } from '../common/Typography';
+import { AppModal } from '../common/AppModal';
 
 export interface LoadingOverlayProps {
   visible: boolean;
@@ -17,7 +18,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   if (!visible) return null;
 
   return (
-    <Modal transparent animationType="fade" visible={visible}>
+    <AppModal transparent animationType="fade" visible={visible}>
       <View style={[styles.backdrop, { backgroundColor: theme.colors.overlay }]}>
         <View
           style={[
@@ -36,7 +37,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
           ) : null}
         </View>
       </View>
-    </Modal>
+    </AppModal>
   );
 };
 

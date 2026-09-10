@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import {
   View,
   StyleSheet,
-  Modal,
   TouchableOpacity,
   TouchableWithoutFeedback,
 } from 'react-native';
+import { AppModal } from '../common/AppModal';
 import { Heading, Text, Caption, PriceText } from '../common/Typography';
 import { OptimizedImage } from '../common/OptimizedImage';
 import { Button } from '../common/Button';
@@ -71,7 +71,7 @@ export const BuyPerPieceModal: React.FC<BuyPerPieceModalProps> = ({
   const currentTotal = selectedUnit.price * quantity;
 
   return (
-    <Modal
+    <AppModal
       visible={visible}
       transparent
       animationType="fade"
@@ -211,7 +211,7 @@ export const BuyPerPieceModal: React.FC<BuyPerPieceModalProps> = ({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+    </AppModal>
   );
 };
 

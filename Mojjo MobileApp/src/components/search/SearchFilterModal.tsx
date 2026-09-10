@@ -1,6 +1,5 @@
 import React, { useState, useEffect, memo } from 'react';
 import {
-  Modal,
   View,
   StyleSheet,
   TouchableOpacity,
@@ -13,6 +12,7 @@ import { useTheme } from '../../theme';
 import { Heading, Text, Caption } from '../common/Typography';
 import { Card } from '../common/Card';
 import { Button } from '../common/Button';
+import { AppModal } from '../common/AppModal';
 
 export interface SearchFilterState {
   sortBy: 'popular' | 'price_asc' | 'price_desc' | 'newest';
@@ -95,7 +95,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = memo(({
   ];
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <AppModal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <SafeAreaView style={[styles.modalSheet, { backgroundColor: theme.colors.background }]}>
           {/* Header */}
@@ -233,7 +233,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = memo(({
           </View>
         </SafeAreaView>
       </View>
-    </Modal>
+    </AppModal>
   );
 });
 

@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './src/theme/ThemeProvider';
 import { ToastProvider } from './src/components/feedback/ToastContext';
+import { WebAppShell } from './src/components/layout/WebAppShell';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -39,9 +40,11 @@ export default function App() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
-            <ToastProvider>
-              <RootNavigator />
-            </ToastProvider>
+            <WebAppShell>
+              <ToastProvider>
+                <RootNavigator />
+              </ToastProvider>
+            </WebAppShell>
           </ThemeProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

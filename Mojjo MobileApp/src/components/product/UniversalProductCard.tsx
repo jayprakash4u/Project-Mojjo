@@ -57,14 +57,8 @@ export const UniversalProductCard: React.FC<UniversalProductCardProps> = memo(
     if (variant === 'grid') {
       return (
         <Card
-          variant="outlined"
-          style={[
-            styles.gridCard,
-            {
-              backgroundColor: theme.colors.surfaceRaised,
-              borderColor: theme.colors.border,
-            },
-          ]}
+          variant="elevated"
+          style={[styles.gridCard, { backgroundColor: theme.colors.surfaceRaised }]}
           padding="none"
           onPress={() => onPress(product)}
         >
@@ -74,8 +68,7 @@ export const UniversalProductCard: React.FC<UniversalProductCardProps> = memo(
               uri={product.thumbnailUrl || (product.images && product.images[0])}
               width="100%"
               height="100%"
-              resizeMode="contain"
-              style={styles.gridImg}
+              resizeMode="cover"
               fallbackIcon="cube-outline"
             />
 
@@ -99,28 +92,26 @@ export const UniversalProductCard: React.FC<UniversalProductCardProps> = memo(
               <Ionicons
                 name={isWishlisted ? 'heart' : 'heart-outline'}
                 size={16}
-                color={isWishlisted ? '#f43f5e' : '#64748b'}
+                color={isWishlisted ? theme.colors.error : theme.colors.muted}
               />
             </TouchableOpacity>
           </View>
 
           {/* Product Body Information */}
           <View style={styles.gridInfoBox}>
-            <View style={styles.gridMetaRow}>
-              <Caption size={10} color={theme.colors.muted} numberOfLines={1} style={styles.gridMetaText}>
-                {product.unit} • {product.brand || 'Mojjo'}
-              </Caption>
-            </View>
-
             <Text
-              weight="800"
-              size={12}
+              weight="500"
+              size={13}
               color={theme.colors.foreground}
-              numberOfLines={2}
+              numberOfLines={1}
               style={styles.gridTitleText}
             >
               {product.name}
             </Text>
+
+            <Caption size={11} color={theme.colors.muted} numberOfLines={1}>
+              {product.unit}
+            </Caption>
 
             {/* Cigarette Per-Piece Interactive Chip */}
             {pieceUnit && onOpenUnitModal ? (
@@ -141,14 +132,7 @@ export const UniversalProductCard: React.FC<UniversalProductCardProps> = memo(
 
             {/* Footer: Price & Add Action */}
             <View style={styles.gridFooter}>
-              <View style={styles.gridPriceStack}>
-                {product.originalPrice && product.originalPrice > product.price ? (
-                  <Caption color={theme.colors.muted} style={styles.strikethroughText}>
-                    रू {product.originalPrice}
-                  </Caption>
-                ) : null}
-                <PriceText amount={product.price} size="sm" />
-              </View>
+              <PriceText amount={product.price} originalAmount={product.originalPrice} size="md" />
 
               <Button
                 title={pieceUnit && onOpenUnitModal ? 'Unit ▾' : '+ Add'}
@@ -219,8 +203,8 @@ export const UniversalProductCard: React.FC<UniversalProductCardProps> = memo(
 
           <View style={styles.productDetails}>
             <Text
-              weight="800"
-              size={13}
+              weight="500"
+              size={14}
               color={theme.colors.foreground}
               numberOfLines={2}
               style={styles.productTitle}
@@ -260,7 +244,7 @@ export const UniversalProductCard: React.FC<UniversalProductCardProps> = memo(
           <PriceText
             amount={product.price}
             originalAmount={product.originalPrice}
-            size="sm"
+            size="md"
           />
 
           <Button
@@ -294,49 +278,36 @@ const styles = StyleSheet.create({
   },
   gridImageVessel: {
     width: '100%',
-    height: 120,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: 132,
     position: 'relative',
-    padding: 6,
-  },
-  gridImg: {
-    width: '100%',
-    height: '100%',
   },
   gridDiscountBadge: {
     position: 'absolute',
-    top: 6,
-    left: 6,
+    top: 8,
+    left: 8,
   },
   gridHeartBtn: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
     borderRadius: 14,
-    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
   gridInfoBox: {
-    padding: 8,
-    gap: 3,
-  },
-  gridMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  gridMetaText: {
-    fontSize: 10,
+    padding: 10,
+    gap: 2,
   },
   gridTitleText: {
-    lineHeight: 16,
-    minHeight: 32,
+    lineHeight: 17,
   },
   gridPieceChip: {
     flexDirection: 'row',
@@ -347,28 +318,19 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 6,
     borderWidth: 1,
-    marginTop: 2,
+    marginTop: 4,
   },
   gridFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 6,
-    paddingTop: 6,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  gridPriceStack: {
-    gap: 1,
+    marginTop: 8,
   },
   gridActionBtn: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 4,
-    minHeight: 28,
-  },
-  strikethroughText: {
-    textDecorationLine: 'line-through',
-    fontSize: 9,
+    minHeight: 30,
+    borderRadius: 16,
   },
 
   // Horizontal Card Styles

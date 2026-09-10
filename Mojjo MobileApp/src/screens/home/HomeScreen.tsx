@@ -1,5 +1,18 @@
-import React, { useCallback, useMemo, memo } from 'react';
-import { View, StyleSheet, TouchableOpacity, FlatList, ListRenderItem } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  ListRenderItem,
+  Animated,
+  ScrollView,
+  Dimensions,
+  LayoutChangeEvent,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  Image,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Heading, Text, Caption, PriceText } from '../../components/common/Typography';
@@ -62,6 +75,48 @@ const MOCK_CATEGORIES: CategoryItemData[] = [
     icon: 'wine-outline',
     color: '#0F766E',
   },
+];
+
+interface QuickSubcategoryShortcut {
+  id: string;
+  categoryId: string;
+  subcategorySlug: string;
+  name: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}
+
+// Popular alcohol subcategories, surfaced as extra quick-tabs alongside the
+// top-level categories so users can jump straight to e.g. Beer without
+// drilling through Alcohol first. Slugs must match UNIFIED_CATEGORIES in
+// CategoriesScreen.tsx.
+const QUICK_SUBCATEGORY_SHORTCUTS: QuickSubcategoryShortcut[] = [
+  { id: 'beer', categoryId: 'alcohol', subcategorySlug: 'beer', name: 'Beer', icon: 'beer' },
+  { id: 'whisky', categoryId: 'alcohol', subcategorySlug: 'whisky', name: 'Whiskey', icon: 'flame' },
+  { id: 'wine', categoryId: 'alcohol', subcategorySlug: 'wine', name: 'Wine', icon: 'wine-outline' },
+  { id: 'vodka', categoryId: 'alcohol', subcategorySlug: 'vodka', name: 'Vodka', icon: 'water-outline' },
+];
+
+interface PromoBannerData {
+  id: string;
+  badge?: string;
+  badgeVariant?: 'accent' | 'secondary' | 'success';
+  eyebrow?: string;
+  title?: string;
+  subtitle?: string;
+  image?: string;
+  background?: 'primary' | 'secondary' | 'primaryLight';
+  // When set, this slide renders as ONE full-bleed pre-designed graphic
+  // (text baked into the image itself) instead of the code-rendered
+  // badge/title/subtitle + bleeding-photo layout the fallback slides use.
+  fullImage?: ReturnType<typeof require>;
+}
+
+// Swipeable promo carousel — 4 pre-designed graphics (text baked in).
+const PROMO_BANNERS: PromoBannerData[] = [
+  { id: 'liquor-express', fullImage: require('../../../assets/banners/one.png') },
+  { id: 'snacks-cold-drinks', fullImage: require('../../../assets/banners/two.png') },
+  { id: 'premium-liquor-collection', fullImage: require('../../../assets/banners/three.png') },
+  { id: 'fast-delivery', fullImage: require('../../../assets/banners/four.png') },
 ];
 
 const DEAL_CARD_WIDTH = 156;
@@ -194,7 +249,7 @@ const ProductShowcaseCard = memo<{
       </View>
 
       <View style={styles.dealContent}>
-        <Text weight="700" size={13} numberOfLines={1} style={styles.dealTitle}>
+        <Text weight="500" size={13} numberOfLines={1} style={styles.dealTitle}>
           {product.name}
         </Text>
         <Caption size={11} color={theme.colors.muted} numberOfLines={1}>
@@ -205,7 +260,7 @@ const ProductShowcaseCard = memo<{
           <PriceText
             amount={product.price}
             originalAmount={product.originalPrice}
-            size="sm"
+            size="md"
           />
           <Button
             title="+ Add"
@@ -229,6 +284,78 @@ export const HomeScreen: React.FC = () => {
   const selectedAddress = useSelectedAddress();
   const products = useProductStore((s) => s.products);
 
+  // Rotating search placeholder — cycles through one category name at a time.
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const placeholderFade = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      Animated.timing(placeholderFade, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }).start(() => {
+        setPlaceholderIndex((i) => (i + 1) % MOCK_CATEGORIES.length);
+        Animated.timing(placeholderFade, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 2200);
+    return () => clearInterval(interval);
+  }, [placeholderFade]);
+
+  // Promo banner carousel
+  const [bannerWidth, setBannerWidth] = useState(
+    () => Dimensions.get('window').width - 24
+  );
+  const [bannerIndex, setBannerIndex] = useState(0);
+  const bannerScrollRef = useRef<ScrollView>(null);
+
+  const handleBannerLayout = useCallback((e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    if (w > 0) setBannerWidth(w);
+  }, []);
+
+  // Driven by onScroll (not onMomentumScrollEnd) — react-native-web doesn't
+  // reliably fire momentum-end on non-touch (wheel/trackpad) scrolling, so
+  // the dots would get stuck. Live onScroll works consistently everywhere.
+  const handleBannerScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (!bannerWidth) return;
+      const idx = Math.round(e.nativeEvent.contentOffset.x / bannerWidth);
+      setBannerIndex(Math.max(0, Math.min(idx, PROMO_BANNERS.length - 1)));
+    },
+    [bannerWidth]
+  );
+
+  // Jump to a slide directly — used by the dots, arrow buttons, and
+  // auto-rotate. A mouse click-drag doesn't scroll RN Web's ScrollView the
+  // way a real touch swipe does, so these give desktop users a way to
+  // change slides too.
+  const goToBanner = useCallback(
+    (idx: number) => {
+      const clamped = Math.max(0, Math.min(idx, PROMO_BANNERS.length - 1));
+      bannerScrollRef.current?.scrollTo({ x: clamped * bannerWidth, animated: true });
+      setBannerIndex(clamped);
+    },
+    [bannerWidth]
+  );
+
+  // Auto-rotate every 4s, looping back to the first slide.
+  useEffect(() => {
+    if (!bannerWidth) return;
+    const interval = setInterval(() => {
+      setBannerIndex((prev) => {
+        const next = (prev + 1) % PROMO_BANNERS.length;
+        bannerScrollRef.current?.scrollTo({ x: next * bannerWidth, animated: true });
+        return next;
+      });
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [bannerWidth]);
+
   const dealsOfTheDay = useMemo(() => products.filter((p) => p.isFlashDeal), [products]);
   const popularNow = useMemo(() => products.filter((p) => (p.ratingsAverage || 0) >= 4.4), [products]);
   const alcoholProducts = useMemo(() => products.filter((p) => p.categoryId === 'alcohol'), [products]);
@@ -240,6 +367,16 @@ export const HomeScreen: React.FC = () => {
       navigation.navigate('MainTabs', {
         screen: 'CategoriesTab',
         params: { initialCategoryId: categoryId },
+      });
+    },
+    [navigation]
+  );
+
+  const handleSubcategoryPress = useCallback(
+    (categoryId: string, subcategorySlug: string) => {
+      navigation.navigate('MainTabs', {
+        screen: 'CategoriesTab',
+        params: { initialCategoryId: categoryId, initialSubcategorySlug: subcategorySlug },
       });
     },
     [navigation]
@@ -285,50 +422,31 @@ export const HomeScreen: React.FC = () => {
   const addressDisplay = selectedAddress
     ? `${selectedAddress.area}, ${selectedAddress.city}`
     : 'Jhamsikhel, Lalitpur';
-  const etaDisplay = selectedAddress?.isServiceable
-    ? `⚡ ${selectedAddress.etaMinutes || 45} MINS DELIVERY`
-    : '⚠️ OUTSIDE DELIVERY ZONE';
 
   return (
     <ScreenWrapper scrollable contentContainerStyle={styles.container}>
       <OfflineBanner />
 
-      {/* 1. Top Location & Delivery Bar */}
+      {/* 1. Top Location Bar */}
       <View style={styles.topBar}>
         <View style={styles.locationContainer}>
-          <View style={styles.locationHeaderRow}>
-            <Ionicons
-              name={selectedAddress?.isServiceable ? 'flash' : 'location-outline'}
-              size={16}
-              color={selectedAddress?.isServiceable ? theme.colors.accent : theme.colors.warning}
-            />
-            <Text
-              weight="800"
-              size={12}
-              color={selectedAddress?.isServiceable ? theme.colors.accent : theme.colors.warning}
-              style={styles.etaText}
-            >
-              {etaDisplay}
-            </Text>
-          </View>
           <TouchableOpacity
             style={styles.addressRow}
             onPress={() => navigation.navigate('SavedAddresses')}
             activeOpacity={0.7}
           >
-            <Heading level={4} numberOfLines={1} style={styles.addressText}>
+            <Ionicons name="location-sharp" size={15} color={theme.colors.foreground} />
+            <Text
+              weight="700"
+              size={14}
+              numberOfLines={1}
+              style={styles.addressText}
+            >
               {addressDisplay}
-            </Heading>
-            <Ionicons name="chevron-down" size={16} color={theme.colors.foreground} />
+            </Text>
+            <Ionicons name="chevron-down" size={14} color={theme.colors.foreground} />
           </TouchableOpacity>
         </View>
-
-        <TouchableOpacity
-          onPress={() => navigation.navigate('ProfileTab')}
-          style={[styles.profileButton, { backgroundColor: theme.colors.surfaceRaised }]}
-        >
-          <Ionicons name="person-circle-outline" size={32} color={theme.colors.primary} />
-        </TouchableOpacity>
       </View>
 
       {/* 2. Quick Search Bar */}
@@ -339,56 +457,188 @@ export const HomeScreen: React.FC = () => {
           styles.searchBar,
           {
             backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
+            borderColor: theme.colors.secondary,
           },
+          theme.shadows.xs,
         ]}
       >
-        <Ionicons name="search" size={20} color={theme.colors.secondary} />
-        <Text style={[styles.searchPlaceholder, { color: theme.colors.subtle }]}>
-          Search "whisky, wine, beer, cigarettes, snacks, cold drinks..."
-        </Text>
+        <Ionicons name="search" size={18} color={theme.colors.muted} />
+        <View style={styles.searchPlaceholderClip}>
+          <Animated.Text
+            numberOfLines={1}
+            style={[
+              styles.searchPlaceholder,
+              { color: theme.colors.subtle, opacity: placeholderFade },
+            ]}
+          >
+            {MOCK_CATEGORIES[placeholderIndex].name}
+          </Animated.Text>
+        </View>
+        <View style={[styles.searchGoButton, { backgroundColor: theme.colors.secondary }]}>
+          <Text weight="700" size={13} color={theme.colors.onSecondary}>
+            Search
+          </Text>
+        </View>
       </TouchableOpacity>
 
-      {/* 3. Hero Marketplace Banner directly matching Mojjo Frontend */}
-      <Card
-        variant="elevated"
-        style={[styles.heroCard, { backgroundColor: theme.colors.primary }]}
-        padding="md"
+      {/* 2b. Quick Category Tabs */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categoryTabsRow}
       >
-        <View style={styles.heroBadgeRow}>
-          <Badge label="⚡ UNDER AN HOUR" variant="accent" size="sm" />
-          <Caption color={theme.colors.onPrimaryMuted}>Kathmandu Tonight</Caption>
+        <View style={styles.categoryTabItem}>
+          <View style={[styles.categoryTabIconBox, { backgroundColor: theme.colors.secondarySoft }]}>
+            <Ionicons name="flash-outline" size={16} color={theme.colors.foreground} />
+          </View>
+          <Text weight="700" size={10} color={theme.colors.foreground} numberOfLines={1}>
+            All
+          </Text>
+          <View style={[styles.categoryTabIndicator, { backgroundColor: theme.colors.secondary }]} />
         </View>
 
-        <Heading level={2} color={theme.colors.onPrimary} style={styles.heroTitle}>
-          The good stuff, at your door in under an hour.
-        </Heading>
-        <Text size={13} color={theme.colors.onPrimaryMuted} style={styles.heroSubtitle}>
-          Whisky, wine and beer alongside cigarettes, snacks and cold drinks. One order, one delivery.
-        </Text>
+        {MOCK_CATEGORIES.map((cat) => (
+          <TouchableOpacity
+            key={cat.id}
+            style={styles.categoryTabItem}
+            onPress={() => handleCategoryPress(cat.id)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name={cat.icon} size={20} color={theme.colors.foreground} style={styles.categoryTabIconBare} />
+            <Text weight="600" size={10} color={theme.colors.muted} numberOfLines={1}>
+              {cat.name}
+            </Text>
+          </TouchableOpacity>
+        ))}
 
-        {/* Value Prop Highlights matching Website promises */}
-        <View style={styles.heroPromisesRow}>
-          <View style={styles.heroPromiseItem}>
-            <Ionicons name="flash" size={14} color={theme.colors.accent} />
-            <Text size={11} weight="600" color={theme.colors.onPrimary}>
-              45-Min Delivery
+        {QUICK_SUBCATEGORY_SHORTCUTS.map((sub) => (
+          <TouchableOpacity
+            key={sub.id}
+            style={styles.categoryTabItem}
+            onPress={() => handleSubcategoryPress(sub.categoryId, sub.subcategorySlug)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name={sub.icon} size={20} color={theme.colors.foreground} style={styles.categoryTabIconBare} />
+            <Text weight="600" size={10} color={theme.colors.muted} numberOfLines={1}>
+              {sub.name}
             </Text>
-          </View>
-          <View style={styles.heroPromiseItem}>
-            <Ionicons name="car" size={14} color={theme.colors.accent} />
-            <Text size={11} weight="600" color={theme.colors.onPrimary}>
-              Free over रू 2,000
-            </Text>
-          </View>
-          <View style={styles.heroPromiseItem}>
-            <Ionicons name="shield-checkmark" size={14} color={theme.colors.accent} />
-            <Text size={11} weight="600" color={theme.colors.onPrimary}>
-              Licensed Stores Only
-            </Text>
-          </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <View style={[styles.categoryTabsDivider, { backgroundColor: theme.colors.border }]} />
+
+      {/* 3. Promo Banner Carousel */}
+      <View onLayout={handleBannerLayout} style={styles.bannerWrapper}>
+        <View style={styles.bannerScrollArea}>
+        <ScrollView
+          ref={bannerScrollRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleBannerScroll}
+          scrollEventThrottle={16}
+        >
+          {PROMO_BANNERS.map((banner) =>
+            banner.fullImage ? (
+              // Pre-designed graphic — text is already baked into the image.
+              <View key={banner.id} style={[styles.bannerSlide, { width: bannerWidth }]}>
+                <Image
+                  source={banner.fullImage}
+                  style={styles.bannerFullImage}
+                  resizeMode="cover"
+                />
+              </View>
+            ) : (
+              <View
+                key={banner.id}
+                style={[
+                  styles.bannerSlide,
+                  { width: bannerWidth, backgroundColor: theme.colors[banner.background || 'primary'] },
+                ]}
+              >
+                <View style={styles.bannerTextCol}>
+                  <View style={styles.heroBadgeRow}>
+                    <Badge label={banner.badge || ''} variant={banner.badgeVariant || 'secondary'} size="sm" />
+                    <Caption color={theme.colors.onPrimaryMuted} numberOfLines={1}>
+                      {banner.eyebrow}
+                    </Caption>
+                  </View>
+
+                  <Heading
+                    level={3}
+                    color={theme.colors.onPrimary}
+                    numberOfLines={3}
+                    style={styles.heroTitle}
+                  >
+                    {banner.title}
+                  </Heading>
+                  <Text
+                    size={12}
+                    color={theme.colors.onPrimaryMuted}
+                    numberOfLines={2}
+                    style={styles.heroSubtitle}
+                  >
+                    {banner.subtitle}
+                  </Text>
+                </View>
+
+                <View style={styles.bannerImageWrap}>
+                  <OptimizedImage
+                    uri={banner.image}
+                    width="100%"
+                    height="100%"
+                    resizeMode="cover"
+                  />
+                  <View style={styles.bannerImageScrim} />
+                </View>
+              </View>
+            )
+          )}
+        </ScrollView>
+
+        {/* Arrow buttons — a mouse click-drag doesn't scroll RN Web's
+            ScrollView like a real touch swipe, so these give desktop users
+            a way to change slides too. */}
+        {bannerIndex > 0 && (
+          <TouchableOpacity
+            onPress={() => goToBanner(bannerIndex - 1)}
+            style={[styles.bannerArrowBtn, styles.bannerArrowLeft]}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="chevron-back" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
+        {bannerIndex < PROMO_BANNERS.length - 1 && (
+          <TouchableOpacity
+            onPress={() => goToBanner(bannerIndex + 1)}
+            style={[styles.bannerArrowBtn, styles.bannerArrowRight]}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
         </View>
-      </Card>
+
+        {/* Pagination Dots */}
+        <View style={styles.bannerDotsRow}>
+          {PROMO_BANNERS.map((banner, idx) => (
+            <TouchableOpacity
+              key={banner.id}
+              onPress={() => goToBanner(idx)}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              style={[
+                styles.bannerDot,
+                {
+                  width: idx === bannerIndex ? 18 : 6,
+                  backgroundColor:
+                    idx === bannerIndex ? theme.colors.secondary : theme.colors.border,
+                },
+              ]}
+            />
+          ))}
+        </View>
+      </View>
 
       {/* 4. Deals of the Day (DealBand) */}
       <View style={styles.sectionHeader}>
@@ -548,44 +798,6 @@ export const HomeScreen: React.FC = () => {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.horizontalListContent}
       />
-
-      {/* 10. Why Mojjo Trust Section directly from Mojjo Frontend */}
-      <Card style={styles.whyMojjoCard} padding="md">
-        <Heading level={4} style={styles.whyMojjoTitle}>
-          Why Mojjo?
-        </Heading>
-        <View style={styles.whyMojjoGrid}>
-          <View style={styles.whyMojjoItem}>
-            <View style={[styles.whyIconCircle, { backgroundColor: theme.colors.secondarySoft }]}>
-              <Ionicons name="flash" size={18} color={theme.colors.secondary} />
-            </View>
-            <View style={styles.whyContent}>
-              <Text weight="700" size={13}>Delivered in 45 minutes</Text>
-              <Caption color={theme.colors.muted}>Dispatched from partner stores across Kathmandu.</Caption>
-            </View>
-          </View>
-
-          <View style={styles.whyMojjoItem}>
-            <View style={[styles.whyIconCircle, { backgroundColor: theme.colors.accentSoft }]}>
-              <Ionicons name="snow" size={18} color={theme.colors.accent} />
-            </View>
-            <View style={styles.whyContent}>
-              <Text weight="700" size={13}>Cold on arrival</Text>
-              <Caption color={theme.colors.muted}>Thermal bags and ice packs for beers, wines and soft drinks.</Caption>
-            </View>
-          </View>
-
-          <View style={styles.whyMojjoItem}>
-            <View style={[styles.whyIconCircle, { backgroundColor: theme.colors.successSoft }]}>
-              <Ionicons name="shield-checkmark" size={18} color={theme.colors.success} />
-            </View>
-            <View style={styles.whyContent}>
-              <Text weight="700" size={13}>Licensed stores only</Text>
-              <Caption color={theme.colors.muted}>Every bottle and pack comes from verified retailers.</Caption>
-            </View>
-          </View>
-        </View>
-      </Card>
     </ScreenWrapper>
   );
 };
@@ -599,47 +811,128 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
+    paddingVertical: 6,
   },
   locationContainer: {
     flex: 1,
   },
-  locationHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  etaText: {
-    marginLeft: 4,
-    letterSpacing: 0.5,
-  },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
   addressText: {
-    marginRight: 4,
-  },
-  profileButton: {
-    padding: 2,
-    borderRadius: 20,
+    marginRight: 2,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginVertical: 10,
+    paddingLeft: 14,
+    paddingRight: 4,
+    paddingVertical: 3,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    marginVertical: 8,
+  },
+  searchPlaceholderClip: {
+    flex: 1,
+    marginLeft: 8,
   },
   searchPlaceholder: {
-    marginLeft: 10,
     fontSize: 13,
   },
-  heroCard: {
-    borderRadius: 20,
+  searchGoButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 18,
+  },
+  categoryTabsRow: {
+    flexDirection: 'row',
+    gap: 16,
+    paddingBottom: 4,
+  },
+  categoryTabItem: {
+    alignItems: 'center',
+    width: 48,
+  },
+  categoryTabIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  categoryTabIconBare: {
+    marginBottom: 2,
+  },
+  categoryTabIndicator: {
+    height: 2,
+    width: 18,
+    borderRadius: 1,
+    marginTop: 2,
+  },
+  categoryTabsDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: -12,
+    marginBottom: 6,
+  },
+  bannerWrapper: {
     marginBottom: 16,
+  },
+  bannerScrollArea: {
+    position: 'relative',
+  },
+  bannerSlide: {
+    flexDirection: 'row',
+    borderRadius: 20,
+    overflow: 'hidden',
+    minHeight: 168,
+  },
+  bannerFullImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerTextCol: {
+    flex: 1,
+    padding: 16,
+    paddingRight: 8,
+    justifyContent: 'center',
+  },
+  bannerImageWrap: {
+    width: '38%',
+  },
+  bannerImageScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+  },
+  bannerDotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 10,
+  },
+  bannerDot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  bannerArrowBtn: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  bannerArrowLeft: {
+    left: 8,
+  },
+  bannerArrowRight: {
+    right: 8,
   },
   heroBadgeRow: {
     flexDirection: 'row',
@@ -649,24 +942,10 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     marginBottom: 6,
-    lineHeight: 28,
+    lineHeight: 24,
   },
   heroSubtitle: {
-    marginBottom: 12,
-    lineHeight: 18,
-  },
-  heroPromisesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.15)',
-    paddingTop: 10,
-  },
-  heroPromiseItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+    lineHeight: 17,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -789,31 +1068,5 @@ const styles = StyleSheet.create({
   },
   categoryName: {
     marginBottom: 2,
-  },
-  whyMojjoCard: {
-    marginTop: 24,
-    marginBottom: 16,
-    borderRadius: 18,
-  },
-  whyMojjoTitle: {
-    marginBottom: 14,
-  },
-  whyMojjoGrid: {
-    gap: 12,
-  },
-  whyMojjoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  whyIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  whyContent: {
-    flex: 1,
   },
 });

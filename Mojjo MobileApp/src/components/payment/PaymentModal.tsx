@@ -1,6 +1,5 @@
 import React, { useState, memo } from 'react';
 import {
-  Modal,
   View,
   StyleSheet,
   TouchableOpacity,
@@ -13,6 +12,7 @@ import { Heading, Text, Caption, PriceText } from '../common/Typography';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
+import { AppModal } from '../common/AppModal';
 import { PaymentsApi } from '../../api/services/paymentsApi';
 import { PaymentVerificationResultDto } from '../../types/payment';
 import { formatNPR } from '../../utils/currency';
@@ -115,7 +115,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = memo(({
   };
 
   return (
-    <Modal
+    <AppModal
       visible={visible}
       animationType="slide"
       transparent={false}
@@ -230,7 +230,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = memo(({
           />
         </View>
       </SafeAreaView>
-    </Modal>
+    </AppModal>
   );
 });
 

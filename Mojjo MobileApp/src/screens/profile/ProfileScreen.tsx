@@ -4,13 +4,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Modal,
   TextInput,
   Alert,
   Linking,
   Platform,
 } from 'react-native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { AppModal } from '../../components/common/AppModal';
 import { Header } from '../../components/layout/Header';
 import { Heading, Text, Caption } from '../../components/common/Typography';
 import { Card } from '../../components/common/Card';
@@ -26,24 +26,16 @@ import { useWishlistStore } from '../../store/wishlistStore';
 
 interface MenuItemProps {
   icon: keyof typeof Ionicons.glyphMap;
-  iconColor?: string;
-  iconBgColor?: string;
   title: string;
-  subtitle?: string;
   badge?: string;
-  badgeVariant?: 'primary' | 'secondary' | 'accent' | 'success' | 'error';
   onPress: () => void;
   isLast?: boolean;
 }
 
 const MenuItem: React.FC<MenuItemProps> = ({
   icon,
-  iconColor,
-  iconBgColor,
   title,
-  subtitle,
   badge,
-  badgeVariant = 'secondary',
   onPress,
   isLast = false,
 }) => {
@@ -57,49 +49,23 @@ const MenuItem: React.FC<MenuItemProps> = ({
           HapticsService.selection();
           onPress();
         }}
-        activeOpacity={0.7}
+        activeOpacity={0.6}
       >
-        <View
-          style={[
-            styles.menuIconBox,
-            {
-              backgroundColor: iconBgColor || theme.colors.surfaceSunken,
-            },
-          ]}
-        >
-          <Ionicons
-            name={icon}
-            size={20}
-            color={iconColor || theme.colors.secondary}
-          />
-        </View>
+        <Ionicons
+          name={icon}
+          size={22}
+          color={theme.colors.muted}
+          style={styles.menuIcon}
+        />
 
-        <View style={styles.menuTextContainer}>
-          <Text weight="700" size={14} color={theme.colors.foreground}>
-            {title}
-          </Text>
-          {subtitle ? (
-            <Caption size={11} color={theme.colors.muted}>
-              {subtitle}
-            </Caption>
-          ) : null}
-        </View>
+        <Text weight="500" size={15} color={theme.colors.foreground} style={styles.menuTitle}>
+          {title}
+        </Text>
 
-        <View style={styles.menuRightContainer}>
-          {badge ? (
-            <Badge
-              label={badge}
-              variant={badgeVariant}
-              size="sm"
-              style={styles.menuBadge}
-            />
-          ) : null}
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color={theme.colors.subtle}
-          />
-        </View>
+        {badge ? (
+          <Badge label={badge} variant="secondary" size="sm" style={styles.menuBadge} />
+        ) : null}
+        <Ionicons name="chevron-forward" size={18} color={theme.colors.subtle} />
       </TouchableOpacity>
       {!isLast && (
         <View
@@ -196,16 +162,11 @@ export const ProfileScreen: React.FC = () => {
 
   return (
     <ScreenWrapper
-      headerComponent={
-        <Header
-          title="Account & Settings"
-          subtitle="Manage your profile, orders & preferences"
-        />
-      }
+      headerComponent={<Header title="My Account" />}
       scrollable
       contentContainerStyle={styles.container}
     >
-      {/* 1. Header Profile Banner Card */}
+      {/* Profile Banner Card */}
       <Card
         style={[
           styles.profileBannerCard,
@@ -282,75 +243,43 @@ export const ProfileScreen: React.FC = () => {
         </View>
       </Card>
 
-      {/* 2. SECTION: My Activity */}
-      <Text
-        weight="800"
-        size={11}
-        color={theme.colors.subtle}
-        style={styles.sectionHeader}
-      >
-        MY ACTIVITY
-      </Text>
-      <Card style={styles.menuCard} padding="none">
+      <View style={[styles.gutter, { backgroundColor: theme.colors.surfaceSunken }]} />
+
+      {/* Group 1: My Activity */}
+      <View style={[styles.menuGroup, { backgroundColor: theme.colors.surfaceRaised }]}>
         <MenuItem
           icon="bag-handle-outline"
-          iconColor={theme.colors.secondary}
-          iconBgColor={theme.colors.secondarySoft}
-          title="Orders"
-          subtitle="Past deliveries & live order tracking"
-          badge="Live Tracker"
-          badgeVariant="accent"
+          title="My Orders"
           onPress={() =>
             navigation.navigate('MainTabs', { screen: 'OrdersTab' })
           }
         />
         <MenuItem
           icon="heart-outline"
-          iconColor="#B93B3B"
-          iconBgColor="#FBE9E9"
-          title="Wishlist"
-          subtitle="Saved bottles, snacks & favorites"
-          badge={wishlistCount > 0 ? `${wishlistCount} Saved` : undefined}
-          badgeVariant="secondary"
+          title="My Wishlist"
+          badge={wishlistCount > 0 ? `${wishlistCount}` : undefined}
           onPress={() => navigation.navigate('Wishlist')}
         />
         <MenuItem
           icon="bulb-outline"
-          iconColor="#D97706"
-          iconBgColor="#FEF3C7"
           title="Suggest Products"
-          subtitle="Can't find a brand? Ask us to stock it"
           onPress={() => setSuggestModalVisible(true)}
           isLast
         />
-      </Card>
+      </View>
 
-      {/* 3. SECTION: Manage & Details */}
-      <Text
-        weight="800"
-        size={11}
-        color={theme.colors.subtle}
-        style={styles.sectionHeader}
-      >
-        MANAGE & DETAILS
-      </Text>
-      <Card style={styles.menuCard} padding="none">
+      <View style={[styles.gutter, { backgroundColor: theme.colors.surfaceSunken }]} />
+
+      {/* Group 2: Manage & Details */}
+      <View style={[styles.menuGroup, { backgroundColor: theme.colors.surfaceRaised }]}>
         <MenuItem
           icon="location-outline"
-          iconColor="#0F766E"
-          iconBgColor="#E6F2F0"
-          title="Address"
-          subtitle="Saved home, office & party delivery spots"
-          badge="45m ETA"
-          badgeVariant="secondary"
+          title="Address Book"
           onPress={() => navigation.navigate('SavedAddresses')}
         />
         <MenuItem
           icon="person-outline"
-          iconColor="#7C3AED"
-          iconBgColor="#EDE9FE"
-          title="Profile"
-          subtitle="Edit name, phone number & email"
+          title="Account Information"
           onPress={() =>
             showInfo(
               'Profile',
@@ -360,87 +289,68 @@ export const ProfileScreen: React.FC = () => {
         />
         <MenuItem
           icon="card-outline"
-          iconColor="#059669"
-          iconBgColor="#D1FAE5"
-          title="Payment Options"
-          subtitle="eSewa, Khalti & Cash on Delivery"
+          title="My Payment Options"
           onPress={() => setPaymentOptionsVisible(true)}
           isLast
         />
-      </Card>
+      </View>
 
-      {/* 4. SECTION: Preferences & Support */}
-      <Text
-        weight="800"
-        size={11}
-        color={theme.colors.subtle}
-        style={styles.sectionHeader}
-      >
-        PREFERENCES & SUPPORT
-      </Text>
-      <Card style={styles.menuCard} padding="none">
+      <View style={[styles.gutter, { backgroundColor: theme.colors.surfaceSunken }]} />
+
+      {/* Group 3: Preferences & Support */}
+      <View style={[styles.menuGroup, { backgroundColor: theme.colors.surfaceRaised }]}>
         <MenuItem
           icon="chatbubbles-outline"
-          iconColor="#2563EB"
-          iconBgColor="#DBEAFE"
           title="Customer Support & FAQ"
-          subtitle="24/7 Kathmandu Valley delivery assistance"
           onPress={() => setSupportModalVisible(true)}
         />
         <MenuItem
           icon="notifications-outline"
-          iconColor="#EA580C"
-          iconBgColor="#FFEDD5"
           title="Notifications"
-          subtitle="Order status, OTPs & midnight deals"
-          badge="Active"
-          badgeVariant="success"
           onPress={() =>
             showInfo('Notifications Enabled', 'Instant delivery alerts are on.')
           }
         />
         <MenuItem
           icon="color-palette-outline"
-          iconColor="#4B5563"
-          iconBgColor="#F3F4F6"
-          title="Settings"
-          subtitle={`Appearance: ${mode === 'dark' ? 'Dark Theme' : 'Light Theme'}`}
+          title={`Appearance: ${mode === 'dark' ? 'Dark' : 'Light'}`}
           onPress={handleToggleTheme}
         />
         <MenuItem
           icon="link-outline"
-          iconColor="#6B7280"
-          iconBgColor="#F3F4F6"
           title="Link Device"
-          subtitle="Scan QR to sign in on web / desktop"
           onPress={() => setLinkDeviceModalVisible(true)}
           isLast
         />
-      </Card>
-
-      {/* 5. Logout Action */}
-      <View style={styles.logoutWrapper}>
-        <Button
-          title="Log Out"
-          variant="outline"
-          size="md"
-          fullWidth
-          onPress={handleLogout}
-          style={styles.logoutButton}
-        />
-        <Caption
-          align="center"
-          color={theme.colors.subtle}
-          style={styles.versionText}
-        >
-          App Version 2.1.2090 • Mojjo Quick Commerce Kathmandu
-        </Caption>
       </View>
+
+      <View style={[styles.gutter, { backgroundColor: theme.colors.surfaceSunken }]} />
+
+      {/* Log Out */}
+      <View style={[styles.menuGroup, { backgroundColor: theme.colors.surfaceRaised }]}>
+        <TouchableOpacity
+          style={styles.menuItemRow}
+          onPress={() => {
+            HapticsService.medium();
+            handleLogout();
+          }}
+          activeOpacity={0.6}
+        >
+          <Ionicons name="log-out-outline" size={22} color={theme.colors.error} style={styles.menuIcon} />
+          <Text weight="600" size={15} color={theme.colors.error} style={styles.menuTitle}>
+            Log Out
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <Caption align="center" color={theme.colors.subtle} style={styles.versionText}>
+        App Version 2.1.2090 • Mojjo Quick Commerce Kathmandu
+      </Caption>
 
       {/* ============================================================ */}
       {/* MODAL 1: SUGGEST PRODUCTS */}
       {/* ============================================================ */}
-      <Modal
+      <AppModal
         visible={suggestModalVisible}
         transparent
         animationType="fade"
@@ -521,12 +431,12 @@ export const ProfileScreen: React.FC = () => {
             />
           </View>
         </View>
-      </Modal>
+      </AppModal>
 
       {/* ============================================================ */}
       {/* MODAL 2: CUSTOMER SUPPORT & FAQ */}
       {/* ============================================================ */}
-      <Modal
+      <AppModal
         visible={supportModalVisible}
         transparent
         animationType="fade"
@@ -611,12 +521,12 @@ export const ProfileScreen: React.FC = () => {
             </View>
           </View>
         </View>
-      </Modal>
+      </AppModal>
 
       {/* ============================================================ */}
       {/* MODAL 3: PAYMENT OPTIONS */}
       {/* ============================================================ */}
-      <Modal
+      <AppModal
         visible={paymentOptionsVisible}
         transparent
         animationType="fade"
@@ -725,12 +635,12 @@ export const ProfileScreen: React.FC = () => {
             />
           </View>
         </View>
-      </Modal>
+      </AppModal>
 
       {/* ============================================================ */}
       {/* MODAL 4: LINK DEVICE */}
       {/* ============================================================ */}
-      <Modal
+      <AppModal
         visible={linkDeviceModalVisible}
         transparent
         animationType="fade"
@@ -790,7 +700,7 @@ export const ProfileScreen: React.FC = () => {
             />
           </View>
         </View>
-      </Modal>
+      </AppModal>
     </ScreenWrapper>
   );
 };
@@ -798,12 +708,12 @@ export const ProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     paddingBottom: 40,
-    paddingHorizontal: 12,
   },
   profileBannerCard: {
     borderRadius: 20,
+    marginHorizontal: 12,
     marginTop: 4,
-    marginBottom: 16,
+    marginBottom: 12,
     borderWidth: 1,
   },
   profileRow: {
@@ -860,57 +770,37 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 8,
   },
-  sectionHeader: {
-    letterSpacing: 0.6,
-    marginBottom: 8,
-    marginTop: 12,
-    paddingHorizontal: 4,
+  gutter: {
+    height: 10,
   },
-  menuCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 4,
+  menuGroup: {
+    // Edge-to-edge list group; dividers between rows, plain gutters between groups.
   },
   menuItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 13,
-    paddingHorizontal: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 14,
   },
-  menuIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+  menuIcon: {
+    width: 22,
   },
-  menuTextContainer: {
+  menuTitle: {
     flex: 1,
-    marginLeft: 12,
-  },
-  menuRightContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
   },
   menuBadge: {
     marginRight: 2,
   },
   menuDivider: {
     height: StyleSheet.hairlineWidth,
-    marginLeft: 62,
-  },
-  logoutWrapper: {
-    marginTop: 24,
-    marginBottom: 20,
-    paddingHorizontal: 4,
-  },
-  logoutButton: {
-    marginBottom: 12,
-    borderColor: '#B93B3B',
+    marginLeft: 16,
   },
   versionText: {
     fontSize: 11,
+    marginTop: 20,
+    marginBottom: 8,
+    paddingHorizontal: 16,
   },
   modalBackdrop: {
     flex: 1,

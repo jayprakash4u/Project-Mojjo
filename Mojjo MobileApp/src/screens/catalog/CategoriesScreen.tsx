@@ -5,9 +5,9 @@ import {
   TouchableOpacity,
   FlatList,
   ScrollView,
-  Modal,
 } from 'react-native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { AppModal } from '../../components/common/AppModal';
 import { Heading, Text } from '../../components/common/Typography';
 import { OptimizedImage } from '../../components/common/OptimizedImage';
 import { OfflineBanner } from '../../components/feedback/OfflineBanner';
@@ -45,7 +45,7 @@ export const UNIFIED_CATEGORIES: MobileCategory[] = [
   {
     id: 'alcohol',
     name: 'Hard Drinks & Liquors',
-    shortName: '🍷 Alcohol',
+    shortName: 'Alcohol',
     slug: 'alcohol',
     tagline: 'Whisky, wine, beer & spirits',
     image: 'https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=300',
@@ -203,7 +203,7 @@ export const UNIFIED_CATEGORIES: MobileCategory[] = [
   {
     id: 'cigarettes',
     name: 'Cigarettes & Tobacco',
-    shortName: '🚬 Cigarettes',
+    shortName: 'Cigarettes',
     slug: 'cigarettes',
     tagline: 'Familiar brands, delivered',
     image: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=300',
@@ -239,7 +239,7 @@ export const UNIFIED_CATEGORIES: MobileCategory[] = [
   {
     id: 'snacks',
     name: 'Snacks & Munchies',
-    shortName: '🍟 Snacks',
+    shortName: 'Snacks',
     slug: 'snacks',
     tagline: 'Chips, nuts & quick bites',
     image: 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=300',
@@ -275,7 +275,7 @@ export const UNIFIED_CATEGORIES: MobileCategory[] = [
   {
     id: 'cold-drinks',
     name: 'Drinks & Mixers',
-    shortName: '🥤 Cold Drinks',
+    shortName: 'Cold Drinks',
     slug: 'cold-drinks',
     tagline: 'Soft drinks, water & mixers',
     image: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=300',
@@ -323,7 +323,9 @@ export const CategoriesScreen: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<MobileCategory>(
     UNIFIED_CATEGORIES.find((c) => c.id === initialCatId) || UNIFIED_CATEGORIES[0]
   );
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string>('all');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>(
+    route.params?.initialSubcategorySlug || 'all'
+  );
   const [unitModalProduct, setUnitModalProduct] = useState<Product | null>(null);
 
   // Sorting & Filtering State
@@ -442,15 +444,6 @@ export const CategoriesScreen: React.FC = () => {
           <Ionicons name="chevron-back" size={20} color={theme.colors.foreground} />
         </TouchableOpacity>
 
-        <View style={styles.headerTitleCol}>
-          <Text weight="900" size={16} color={theme.colors.foreground} numberOfLines={1}>
-            {selectedCategory.name}
-          </Text>
-          <Text size={10} color={theme.colors.muted}>
-            {currentProducts.length} items available in Kathmandu
-          </Text>
-        </View>
-
         <View style={styles.headerRightActions}>
           <TouchableOpacity
             onPress={() => navigation.navigate('Search')}
@@ -507,6 +500,12 @@ export const CategoriesScreen: React.FC = () => {
                 ]}
                 activeOpacity={0.8}
               >
+                <Ionicons
+                  name={cat.icon}
+                  size={15}
+                  color={isSelected ? '#FFFFFF' : theme.colors.foreground}
+                  style={styles.categorySegmentIcon}
+                />
                 <Text
                   weight="800"
                   size={12}
@@ -653,28 +652,32 @@ export const CategoriesScreen: React.FC = () => {
                 <TouchableOpacity
                   key={sub.slug}
                   onPress={() => handleSubcategorySelect(sub.slug)}
-                  style={[
-                    styles.railItem,
-                    isSelected && {
-                      backgroundColor: theme.colors.secondarySoft,
-                      borderRadius: 12,
-                      marginHorizontal: 3,
-                    },
-                  ]}
+                  style={styles.railItem}
                   activeOpacity={0.7}
                 >
-                  <View style={styles.railBottleWrapper}>
-                    <OptimizedImage
-                      uri={sub.image || 'https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=200'}
-                      width={34}
-                      height={42}
-                      style={styles.railImg}
-                      fallbackIcon={sub.icon}
-                    />
-                  </View>
+                  {isSelected && (
+                    <View style={[styles.railIndicator, { backgroundColor: theme.colors.secondary }]} />
+                  )}
+                  <OptimizedImage
+                    uri={sub.image || 'https://images.unsplash.com/photo-1527281400683-1aae777175f8?w=200'}
+                    width={52}
+                    height={52}
+                    resizeMode="cover"
+                    fallbackIcon={sub.icon}
+                    containerStyle={[
+                      styles.railAvatar,
+                      {
+                        borderColor: isSelected ? theme.colors.secondary : theme.colors.border,
+                        backgroundColor: isSelected
+                          ? theme.colors.secondarySoft
+                          : theme.colors.surfaceSunken,
+                      },
+                      isSelected && styles.railAvatarSelected,
+                    ]}
+                  />
                   <Text
-                    weight={isSelected ? '900' : '600'}
-                    size={10}
+                    weight={isSelected ? '800' : '600'}
+                    size={11}
                     align="center"
                     color={isSelected ? theme.colors.secondary : theme.colors.muted}
                     numberOfLines={2}
@@ -732,7 +735,7 @@ export const CategoriesScreen: React.FC = () => {
       )}
 
       {/* SORT MODAL */}
-      <Modal
+      <AppModal
         visible={sortModalVisible}
         transparent
         animationType="fade"
@@ -782,10 +785,10 @@ export const CategoriesScreen: React.FC = () => {
             ))}
           </View>
         </TouchableOpacity>
-      </Modal>
+      </AppModal>
 
       {/* BRAND MODAL */}
-      <Modal
+      <AppModal
         visible={brandModalVisible}
         transparent
         animationType="fade"
@@ -846,10 +849,10 @@ export const CategoriesScreen: React.FC = () => {
             </ScrollView>
           </View>
         </TouchableOpacity>
-      </Modal>
+      </AppModal>
 
       {/* PRICE RANGE MODAL */}
-      <Modal
+      <AppModal
         visible={priceModalVisible}
         transparent
         animationType="fade"
@@ -896,7 +899,7 @@ export const CategoriesScreen: React.FC = () => {
             ))}
           </View>
         </TouchableOpacity>
-      </Modal>
+      </AppModal>
     </ScreenWrapper>
   );
 };
@@ -921,11 +924,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitleCol: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: 8,
-  },
   headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -948,10 +946,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   categorySegmentPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
+  },
+  categorySegmentIcon: {
+    marginRight: 5,
   },
   microFilterBar: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -988,34 +991,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   leftRail: {
-    width: 78,
+    width: 84,
     borderRightWidth: StyleSheet.hairlineWidth,
   },
   leftRailScroll: {
-    paddingVertical: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
   },
   railItem: {
     alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 2,
-    minHeight: 70,
+    paddingVertical: 10,
     justifyContent: 'center',
-    marginBottom: 2,
+    minHeight: 88,
+    marginBottom: 4,
   },
-  railBottleWrapper: {
-    width: 36,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
+  railIndicator: {
+    position: 'absolute',
+    left: -8,
+    top: '50%',
+    marginTop: -10,
+    width: 3,
+    height: 20,
+    borderRadius: 2,
   },
-  railImg: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'contain',
+  railAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1.5,
+    marginBottom: 6,
+  },
+  railAvatarSelected: {
+    borderWidth: 2,
   },
   railText: {
-    lineHeight: 11,
+    lineHeight: 13,
+    paddingHorizontal: 2,
   },
   rightContent: {
     flex: 1,

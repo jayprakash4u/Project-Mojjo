@@ -305,10 +305,11 @@ export const SearchScreen: React.FC<Props> = ({ navigation }) => {
               <Ionicons
                 name="search-outline"
                 size={20}
-                color={theme.colors.secondary}
+                color={theme.colors.muted}
                 style={styles.searchIcon}
               />
             }
+            borderColor={theme.colors.secondary}
             clearable
             onClear={() => {
               setQuery('');

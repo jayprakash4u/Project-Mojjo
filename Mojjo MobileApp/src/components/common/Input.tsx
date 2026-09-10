@@ -23,6 +23,8 @@ export interface InputProps extends TextInputProps {
   inputStyle?: TextStyle;
   clearable?: boolean;
   onClear?: () => void;
+  /** Overrides the default gray/focus-teal border with a fixed color (e.g. an always-on brand-colored outline). Existing callers are unaffected unless they pass this. */
+  borderColor?: string;
 }
 
 export const Input: React.FC<InputProps> = React.memo(({
@@ -38,6 +40,7 @@ export const Input: React.FC<InputProps> = React.memo(({
   value,
   onChangeText,
   secureTextEntry,
+  borderColor,
   ...props
 }) => {
   const { theme } = useTheme();
@@ -48,6 +51,7 @@ export const Input: React.FC<InputProps> = React.memo(({
 
   const getBorderColor = () => {
     if (error) return theme.colors.error;
+    if (borderColor) return borderColor;
     if (isFocused) return theme.colors.secondary;
     return theme.colors.border;
   };
