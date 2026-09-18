@@ -249,7 +249,7 @@ const ProductShowcaseCard = memo<{
       </View>
 
       <View style={styles.dealContent}>
-        <Text weight="500" size={13} numberOfLines={1} style={styles.dealTitle}>
+        <Text weight="600" size={13} numberOfLines={2} style={styles.dealTitle}>
           {product.name}
         </Text>
         <Caption size={11} color={theme.colors.muted} numberOfLines={1}>
@@ -597,10 +597,8 @@ export const HomeScreen: React.FC = () => {
           )}
         </ScrollView>
 
-        {/* Arrow buttons — a mouse click-drag doesn't scroll RN Web's
-            ScrollView like a real touch swipe, so these give desktop users
-            a way to change slides too. */}
-        {bannerIndex > 0 && (
+        {/* Arrow buttons — only show on wide desktop viewports where mouse drag is needed */}
+        {bannerWidth > 540 && bannerIndex > 0 && (
           <TouchableOpacity
             onPress={() => goToBanner(bannerIndex - 1)}
             style={[styles.bannerArrowBtn, styles.bannerArrowLeft]}
@@ -609,7 +607,7 @@ export const HomeScreen: React.FC = () => {
             <Ionicons name="chevron-back" size={18} color="#FFFFFF" />
           </TouchableOpacity>
         )}
-        {bannerIndex < PROMO_BANNERS.length - 1 && (
+        {bannerWidth > 540 && bannerIndex < PROMO_BANNERS.length - 1 && (
           <TouchableOpacity
             onPress={() => goToBanner(bannerIndex + 1)}
             style={[styles.bannerArrowBtn, styles.bannerArrowRight]}
@@ -642,14 +640,14 @@ export const HomeScreen: React.FC = () => {
 
       {/* 4. Deals of the Day (DealBand) */}
       <View style={styles.sectionHeader}>
-        <View>
+        <View style={styles.sectionTitleCol}>
           <View style={styles.sectionTitleRow}>
             <Heading level={3}>Deals of the Day</Heading>
             <Badge label="⏳ Midnight" variant="error" size="sm" style={styles.headerBadge} />
           </View>
-          <Caption color={theme.colors.muted}>Reduced until midnight, while stock lasts.</Caption>
+          <Caption color={theme.colors.muted} numberOfLines={1}>Reduced until midnight, while stock lasts.</Caption>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate('Search')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Search')} style={styles.sectionActionBtn}>
           <Caption color={theme.colors.secondary} bold>
             See All Offers
           </Caption>
@@ -668,8 +666,13 @@ export const HomeScreen: React.FC = () => {
 
       {/* 5. 4 Canonical Categories with Photographic Tiles (CategoryShowcase) */}
       <View style={[styles.sectionHeader, styles.sectionTopMargin]}>
-        <Heading level={3}>Shop by Category</Heading>
-        <TouchableOpacity onPress={() => navigation.navigate('MainTabs', { screen: 'CategoriesTab' })}>
+        <View style={styles.sectionTitleCol}>
+          <Heading level={3}>Shop by Category</Heading>
+        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('MainTabs', { screen: 'CategoriesTab' })}
+          style={styles.sectionActionBtn}
+        >
           <Caption color={theme.colors.secondary} bold>
             All Categories
           </Caption>
@@ -688,11 +691,11 @@ export const HomeScreen: React.FC = () => {
 
       {/* 6. Popular Now Showcase */}
       <View style={[styles.sectionHeader, styles.sectionTopMargin]}>
-        <View>
+        <View style={styles.sectionTitleCol}>
           <Heading level={3}>Popular Now</Heading>
-          <Caption color={theme.colors.muted}>What people in your area are ordering tonight</Caption>
+          <Caption color={theme.colors.muted} numberOfLines={1}>What people in your area are ordering tonight</Caption>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate('Search')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Search')} style={styles.sectionActionBtn}>
           <Caption color={theme.colors.secondary} bold>
             Browse
           </Caption>
@@ -711,9 +714,9 @@ export const HomeScreen: React.FC = () => {
 
       {/* 7. Hard Drinks & Liquors Showcase (Alcohol) */}
       <View style={[styles.sectionHeader, styles.sectionTopMargin]}>
-        <View>
+        <View style={styles.sectionTitleCol}>
           <Heading level={3}>Hard Drinks & Liquors</Heading>
-          <Caption color={theme.colors.muted}>Single malts, reserve wines, craft beer & spirits</Caption>
+          <Caption color={theme.colors.muted} numberOfLines={1}>Single malts, reserve wines, craft beer & spirits</Caption>
         </View>
         <TouchableOpacity
           onPress={() =>
@@ -722,6 +725,7 @@ export const HomeScreen: React.FC = () => {
               params: { initialCategoryId: 'alcohol' },
             })
           }
+          style={styles.sectionActionBtn}
         >
           <Caption color={theme.colors.secondary} bold>
             All Alcohol
@@ -741,9 +745,9 @@ export const HomeScreen: React.FC = () => {
 
       {/* 8. Snacks Showcase */}
       <View style={[styles.sectionHeader, styles.sectionTopMargin]}>
-        <View>
+        <View style={styles.sectionTitleCol}>
           <Heading level={3}>Snacks</Heading>
-          <Caption color={theme.colors.muted}>Crisps, roasted nuts, chocolate and quick bites</Caption>
+          <Caption color={theme.colors.muted} numberOfLines={1}>Crisps, roasted nuts, chocolate and quick bites</Caption>
         </View>
         <TouchableOpacity
           onPress={() =>
@@ -752,6 +756,7 @@ export const HomeScreen: React.FC = () => {
               params: { initialCategoryId: 'snacks' },
             })
           }
+          style={styles.sectionActionBtn}
         >
           <Caption color={theme.colors.secondary} bold>
             All Snacks
@@ -771,9 +776,9 @@ export const HomeScreen: React.FC = () => {
 
       {/* 9. Cold Drinks Showcase */}
       <View style={[styles.sectionHeader, styles.sectionTopMargin]}>
-        <View>
+        <View style={styles.sectionTitleCol}>
           <Heading level={3}>Drinks & Mixers</Heading>
-          <Caption color={theme.colors.muted}>Chilled colas, sparkling water, energy drinks & tonic</Caption>
+          <Caption color={theme.colors.muted} numberOfLines={1}>Chilled colas, sparkling water, energy drinks & tonic</Caption>
         </View>
         <TouchableOpacity
           onPress={() =>
@@ -782,6 +787,7 @@ export const HomeScreen: React.FC = () => {
               params: { initialCategoryId: 'cold-drinks' },
             })
           }
+          style={styles.sectionActionBtn}
         >
           <Caption color={theme.colors.secondary} bold>
             All Cold Drinks
@@ -848,12 +854,13 @@ const styles = StyleSheet.create({
   },
   categoryTabsRow: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
     paddingBottom: 4,
   },
   categoryTabItem: {
     alignItems: 'center',
-    width: 48,
+    minWidth: 52,
+    paddingHorizontal: 2,
   },
   categoryTabIconBox: {
     width: 26,
@@ -868,7 +875,7 @@ const styles = StyleSheet.create({
   },
   categoryTabIndicator: {
     height: 2,
-    width: 18,
+    width: 20,
     borderRadius: 1,
     marginTop: 2,
   },
@@ -887,7 +894,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderRadius: 20,
     overflow: 'hidden',
-    minHeight: 168,
+    minHeight: 160,
+    aspectRatio: 2.1,
   },
   bannerFullImage: {
     width: '100%',
@@ -952,14 +960,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 10,
+    gap: 8,
   },
   sectionTopMargin: {
     marginTop: 20,
   },
+  sectionTitleCol: {
+    flex: 1,
+    minWidth: 0,
+  },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 6,
+  },
+  sectionActionBtn: {
+    flexShrink: 0,
+    paddingLeft: 4,
   },
   headerBadge: {
     marginLeft: 4,
@@ -1017,6 +1035,8 @@ const styles = StyleSheet.create({
   },
   dealTitle: {
     marginTop: 2,
+    minHeight: 34,
+    lineHeight: 17,
   },
   dealFooter: {
     flexDirection: 'row',

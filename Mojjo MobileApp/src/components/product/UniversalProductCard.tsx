@@ -100,10 +100,10 @@ export const UniversalProductCard: React.FC<UniversalProductCardProps> = memo(
           {/* Product Body Information */}
           <View style={styles.gridInfoBox}>
             <Text
-              weight="500"
+              weight="600"
               size={13}
               color={theme.colors.foreground}
-              numberOfLines={1}
+              numberOfLines={2}
               style={styles.gridTitleText}
             >
               {product.name}
@@ -307,6 +307,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   gridTitleText: {
+    minHeight: 34,
     lineHeight: 17,
   },
   gridPieceChip: {

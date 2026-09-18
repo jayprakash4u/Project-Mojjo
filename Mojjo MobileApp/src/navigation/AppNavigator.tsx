@@ -1,5 +1,7 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { MainTabParamList } from './types';
 import { HomeScreen } from '../screens/home/HomeScreen';
@@ -9,13 +11,18 @@ import { OrdersScreen } from '../screens/orders/OrdersScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { useTheme } from '../theme';
 import { useCartItemCount } from '../store/cartStore';
-import { LAYOUT } from '../constants/layout';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export const AppNavigator: React.FC = () => {
   const { theme } = useTheme();
   const totalItemCount = useCartItemCount();
+  const insets = useSafeAreaInsets();
+
+  const bottomInset = Math.max(insets.bottom, 0);
+  const isWeb = Platform.OS === 'web';
+  const bottomPadding = isWeb ? 10 : (bottomInset > 0 ? bottomInset : 8);
+  const tabHeight = isWeb ? 72 : (bottomInset > 0 ? 62 + bottomInset : 66);
 
   return (
     <Tab.Navigator
@@ -28,13 +35,23 @@ export const AppNavigator: React.FC = () => {
           backgroundColor: theme.colors.tabBarBackground,
           borderTopColor: theme.colors.border,
           borderTopWidth: 1,
-          height: LAYOUT.tabBarHeight,
-          paddingBottom: 8,
+          height: tabHeight,
+          paddingBottom: bottomPadding,
           paddingTop: 6,
         },
+        tabBarItemStyle: {
+          paddingVertical: 0,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: '600',
+          lineHeight: 13,
+          marginTop: 2,
+        },
+        tabBarIconStyle: {
+          marginTop: 0,
         },
       }}
     >
@@ -43,8 +60,8 @@ export const AppNavigator: React.FC = () => {
         component={HomeScreen}
         options={{
           tabBarLabel: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="home-outline" size={20} color={color} />
           ),
         }}
       />
@@ -54,8 +71,8 @@ export const AppNavigator: React.FC = () => {
         component={CategoriesScreen}
         options={{
           tabBarLabel: 'Categories',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="grid-outline" size={20} color={color} />
           ),
         }}
       />
@@ -69,11 +86,15 @@ export const AppNavigator: React.FC = () => {
           tabBarBadgeStyle: {
             backgroundColor: theme.colors.secondary,
             color: '#FFFFFF',
-            fontSize: 10,
+            fontSize: 9,
             fontWeight: '700',
+            lineHeight: 12,
+            minWidth: 15,
+            height: 15,
+            borderRadius: 7.5,
           },
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bag-handle-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="bag-handle-outline" size={20} color={color} />
           ),
         }}
       />
@@ -83,8 +104,8 @@ export const AppNavigator: React.FC = () => {
         component={OrdersScreen}
         options={{
           tabBarLabel: 'Orders',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="receipt-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="receipt-outline" size={20} color={color} />
           ),
         }}
       />
@@ -94,8 +115,8 @@ export const AppNavigator: React.FC = () => {
         component={ProfileScreen}
         options={{
           tabBarLabel: 'Account',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="person-outline" size={20} color={color} />
           ),
         }}
       />

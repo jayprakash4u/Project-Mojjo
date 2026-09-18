@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import { Product } from '../types/product';
 import {
@@ -373,5 +374,75 @@ export const useCartItems = (): CartItem[] => {
 };
 
 export const useCartSummary = (): CartSummary => {
-  return useCartStore((state) => state.getSummary());
+  const items = useCartStore((state) => state.items);
+  const appliedCoupon = useCartStore((state) => state.appliedCoupon);
+  const mojjoCoinsRedeemed = useCartStore((state) => state.mojjoCoinsRedeemed);
+
+  return useMemo(() => {
+    // 1. Calculate MRP Total & Item Selling Total
+    const mrpSubtotal = items.reduce(
+      (sum, item) => sum + (item.originalPrice || item.unitPrice) * item.quantity,
+      0
+    );
+    const itemSubtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+    const itemDiscountTotal = Math.max(0, mrpSubtotal - itemSubtotal);
+    const totalItemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+
+    // 2. Delivery Tiers & Remaining threshold
+    const isFreeDelivery = itemSubtotal >= APP_CONFIG.FREE_DELIVERY_THRESHOLD || itemSubtotal === 0;
+    const deliveryFee = isFreeDelivery ? 0 : APP_CONFIG.BASE_DELIVERY_FEE;
+    const remainingForFreeDelivery = Math.max(0, APP_CONFIG.FREE_DELIVERY_THRESHOLD - itemSubtotal);
+
+    // 3. Coupon Discount Calculation
+    let couponDiscount = 0;
+    if (appliedCoupon && itemSubtotal >= appliedCoupon.minOrderValue) {
+      if (appliedCoupon.discountType === 'percentage') {
+        const raw = (itemSubtotal * appliedCoupon.discountValue) / 100;
+        couponDiscount = appliedCoupon.maxDiscount ? Math.min(raw, appliedCoupon.maxDiscount) : raw;
+      } else {
+        couponDiscount = appliedCoupon.discountValue;
+      }
+    }
+
+    // 4. Mojjo Coins Discount (1 Coin = NPR 1)
+    const mojjoCoinsDiscount = Math.min(mojjoCoinsRedeemed, Math.max(0, itemSubtotal - couponDiscount));
+
+    // 5. Taxes & Handling Breakdown
+    const handlingFee = 0;
+    const taxAmount = Math.round(itemSubtotal * 0.13 * 100) / 100; // 13% VAT (inclusive)
+
+    // 6. Final Total & Total Savings
+    const totalAmount = Math.max(
+      0,
+      itemSubtotal + deliveryFee + handlingFee - couponDiscount - mojjoCoinsDiscount
+    );
+
+    const deliverySavings = isFreeDelivery && itemSubtotal > 0 ? APP_CONFIG.BASE_DELIVERY_FEE : 0;
+    const totalSavings = itemDiscountTotal + couponDiscount + mojjoCoinsDiscount + deliverySavings;
+
+    const hasOutOfStockItems = items.some((i) => i.isOutOfStock || i.stockQuantity <= 0);
+
+    return {
+      items,
+      mrpSubtotal,
+      itemSubtotal,
+      itemDiscountTotal,
+      couponCode: appliedCoupon?.code,
+      couponDiscount,
+      appliedOffer: appliedCoupon,
+      mojjoCoinsRedeemed,
+      mojjoCoinsDiscount,
+      freeDeliveryThreshold: APP_CONFIG.FREE_DELIVERY_THRESHOLD,
+      isFreeDelivery,
+      remainingForFreeDelivery,
+      deliveryFee,
+      handlingFee,
+      taxAmount,
+      totalAmount,
+      totalSavings,
+      totalItemCount,
+      hasOutOfStockItems,
+      isServerValidated: false,
+    };
+  }, [items, appliedCoupon, mojjoCoinsRedeemed]);
 };

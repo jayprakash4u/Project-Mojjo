@@ -1,4 +1,4 @@
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,8 +6,9 @@ import {
   FlatList,
   ListRenderItem,
   TextInput,
-  ActivityIndicator,
+  ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Header } from '../../components/layout/Header';
@@ -15,7 +16,6 @@ import { Heading, Text, Caption, PriceText } from '../../components/common/Typog
 import { Card } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
-import { EmptyState } from '../../components/feedback/EmptyState';
 import { OfflineBanner } from '../../components/feedback/OfflineBanner';
 import { OptimizedImage } from '../../components/common/OptimizedImage';
 import { useTheme } from '../../theme';
@@ -25,17 +25,30 @@ import {
   useCartSummary,
   useCartAppliedCoupon,
 } from '../../store/cartStore';
+import { useSelectedAddress } from '../../store/addressStore';
 import { Ionicons } from '@expo/vector-icons';
 import { formatNPR } from '../../utils/currency';
 import { useNavigation } from '@react-navigation/native';
 import { CartItem } from '../../types/cart';
+import { Product } from '../../types/product';
 import { useToast } from '../../components/feedback/ToastContext';
 import { PROMOTIONAL_OFFERS } from '../../api/services/cartApi';
+import { UNIFIED_MOCK_PRODUCTS } from '../../data/mockProducts';
+import { HapticsService } from '../../services/haptics';
 
-const CART_ITEM_HEIGHT = 104;
+// Delivery Instructions Options
+const DELIVERY_INSTRUCTIONS = [
+  { id: 'dont-ring', label: "Don't ring bell", icon: 'notifications-off-outline' as const },
+  { id: 'leave-door', label: 'Leave at door', icon: 'home-outline' as const },
+  { id: 'call-arrival', label: 'Call upon arrival', icon: 'call-outline' as const },
+  { id: 'avoid-contact', label: 'Avoid contact', icon: 'shield-checkmark-outline' as const },
+];
+
+// Rider Tip Options
+const RIDER_TIP_OPTIONS = [0, 20, 30, 50, 100];
 
 /**
- * Memoized Rich Cart List Item Component
+ * Memoized Cart List Item Component
  */
 const CartListItem = memo<{
   cartItem: CartItem;
@@ -63,8 +76,8 @@ const CartListItem = memo<{
           <Text weight="700" size={14} numberOfLines={1}>
             {product.name}
           </Text>
-          <Caption color={theme.colors.muted} style={styles.unitText}>
-            {product.unit}
+          <Caption color={theme.colors.muted} style={styles.unitText} numberOfLines={1}>
+            {product.unit} {product.brand ? `• ${product.brand}` : ''}
           </Caption>
 
           {/* Pricing Row with MRP & Savings */}
@@ -128,15 +141,70 @@ const CartListItem = memo<{
 });
 CartListItem.displayName = 'CartListItem';
 
+/**
+ * Quick Add Recommendation Card (Impulse Add-ons)
+ */
+const QuickAddCard = memo<{
+  product: Product;
+  onAdd: (product: Product) => void;
+}>(({ product, onAdd }) => {
+  const { theme } = useTheme();
+
+  return (
+    <View
+      style={[
+        styles.quickAddCard,
+        {
+          backgroundColor: theme.colors.surfaceRaised,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
+      <View style={styles.quickAddImageWrap}>
+        <OptimizedImage
+          uri={product.thumbnailUrl || (product.images && product.images[0])}
+          width={60}
+          height={60}
+          style={styles.quickAddImage}
+          fallbackIcon="cube-outline"
+        />
+      </View>
+      <View style={styles.quickAddInfo}>
+        <Text weight="600" size={12} numberOfLines={1} style={styles.quickAddTitle}>
+          {product.name}
+        </Text>
+        <Caption size={10} color={theme.colors.muted} numberOfLines={1}>
+          {product.unit}
+        </Caption>
+        <View style={styles.quickAddFooter}>
+          <PriceText amount={product.price} size="sm" />
+          <TouchableOpacity
+            onPress={() => onAdd(product)}
+            style={[styles.quickAddBtn, { backgroundColor: theme.colors.secondarySoft, borderColor: theme.colors.secondary }]}
+            activeOpacity={0.7}
+          >
+            <Text weight="800" size={11} color={theme.colors.secondary}>
+              + Add
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+});
+QuickAddCard.displayName = 'QuickAddCard';
+
 export const CartScreen: React.FC = () => {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
-  const { showSuccess, showError, showWarning } = useToast();
+  const { showSuccess, showError, showWarning, showInfo } = useToast();
 
   const items = useCartItems();
   const summary = useCartSummary();
   const appliedCoupon = useCartAppliedCoupon();
+  const selectedAddress = useSelectedAddress();
 
+  const addItem = useCartStore((s) => s.addItem);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const clearCart = useCartStore((s) => s.clearCart);
   const applyCoupon = useCartStore((s) => s.applyCoupon);
@@ -145,6 +213,26 @@ export const CartScreen: React.FC = () => {
 
   const [couponInput, setCouponInput] = useState('');
   const [isValidating, setIsValidating] = useState(false);
+  const [selectedTip, setSelectedTip] = useState<number>(0);
+  const [selectedInstruction, setSelectedInstruction] = useState<string | null>(null);
+
+  // Address text
+  const addressLabel = selectedAddress
+    ? `${selectedAddress.area}, ${selectedAddress.city}`
+    : 'Jhamsikhel, Lalitpur';
+
+  // Cross-sell recommendations (snacks, cold drinks, essentials) not currently in cart
+  const quickAddRecommendations = useMemo(() => {
+    const itemIds = new Set(items.map((i) => i.product.id));
+    return UNIFIED_MOCK_PRODUCTS.filter(
+      (p) => !itemIds.has(p.id) && (p.categoryId === 'snacks' || p.categoryId === 'cold-drinks')
+    ).slice(0, 8);
+  }, [items]);
+
+  // Trending recommendations for Empty State
+  const emptyStateRecommendations = useMemo(() => {
+    return UNIFIED_MOCK_PRODUCTS.filter((p) => p.isFlashDeal || (p.ratingsAverage || 0) >= 4.7).slice(0, 6);
+  }, []);
 
   const handleUpdateQuantity = useCallback(
     (productId: string, quantity: number) => {
@@ -154,6 +242,15 @@ export const CartScreen: React.FC = () => {
       }
     },
     [updateQuantity, showWarning]
+  );
+
+  const handleQuickAdd = useCallback(
+    (product: Product) => {
+      HapticsService.selection();
+      addItem(product, 1);
+      showSuccess('Added to Basket', `${product.name} added`);
+    },
+    [addItem, showSuccess]
   );
 
   const handleApplyCoupon = useCallback(
@@ -180,10 +277,50 @@ export const CartScreen: React.FC = () => {
     showSuccess('Coupon Removed', 'Applied offer has been removed.');
   }, [removeCoupon, showSuccess]);
 
+  const handleTipSelect = (tipAmount: number) => {
+    HapticsService.selection();
+    setSelectedTip((prev) => (prev === tipAmount ? 0 : tipAmount));
+  };
+
+  const handleInstructionToggle = (instructionId: string) => {
+    HapticsService.selection();
+    setSelectedInstruction((prev) => (prev === instructionId ? null : instructionId));
+  };
+
+  const handleClearCart = () => {
+    HapticsService.warning();
+    if (Platform.OS === 'web') {
+      const confirmed = typeof window !== 'undefined' ? window.confirm('Are you sure you want to clear your entire basket?') : true;
+      if (confirmed) {
+        clearCart();
+        showInfo('Basket Cleared', 'All items have been removed.');
+      }
+      return;
+    }
+
+    Alert.alert(
+      'Clear Basket',
+      'Are you sure you want to remove all items from your basket?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: () => {
+            clearCart();
+            showInfo('Basket Cleared', 'All items have been removed.');
+          },
+        },
+      ]
+    );
+  };
+
+  // Grand Total calculation with rider tip
+  const finalPayAmount = summary.totalAmount + selectedTip;
+
   const handleProceedToCheckout = async () => {
     setIsValidating(true);
     try {
-      // Revalidate real-time prices & stock with backend before advancing
       const validation = await revalidateCart();
 
       if (!validation.isValid && validation.warnings.length > 0) {
@@ -217,21 +354,47 @@ export const CartScreen: React.FC = () => {
 
   const cartKeyExtractor = useCallback((item: CartItem) => item.product.id, []);
 
-  const cartGetItemLayout = useCallback(
-    (_: any, index: number) => ({
-      length: CART_ITEM_HEIGHT,
-      offset: CART_ITEM_HEIGHT * index,
-      index,
-    }),
-    []
-  );
-
   // Delivery Progress Calculation
-  const progressRatio = Math.min(1, summary.itemSubtotal / summary.freeDeliveryThreshold);
+  const progressRatio = Math.min(1, summary.itemSubtotal / (summary.freeDeliveryThreshold || 1));
 
+  // Top Delivery Location Bar + Free Delivery Tracker
   const listHeader = (
     <View style={styles.headerSection}>
-      {/* Free Delivery Goal Tracker */}
+      {/* 1. Top Delivery Location & Instant ETA Card */}
+      <View
+        style={[
+          styles.locationBanner,
+          {
+            backgroundColor: theme.colors.surfaceRaised,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <View style={styles.locationIconWrap}>
+          <Ionicons name="flash" size={16} color={theme.colors.secondary} />
+        </View>
+        <View style={styles.locationDetails}>
+          <View style={styles.locationTitleRow}>
+            <Text weight="800" size={13} color={theme.colors.foreground} numberOfLines={1}>
+              10-Min Delivery to {addressLabel}
+            </Text>
+          </View>
+          <Caption color={theme.colors.muted} numberOfLines={1}>
+            Dark Store Express • Thermal sealed bag
+          </Caption>
+        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('SavedAddresses')}
+          style={[styles.changeAddrBtn, { backgroundColor: theme.colors.surfaceSunken }]}
+          activeOpacity={0.7}
+        >
+          <Text weight="700" size={11} color={theme.colors.secondary}>
+            Change
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 2. Free Delivery Goal Tracker */}
       <Card
         variant="sunken"
         style={[
@@ -270,13 +433,125 @@ export const CartScreen: React.FC = () => {
     </View>
   );
 
+  // Footer: Impulse carousel, delivery instructions, rider tip, coupons, bill summary
   const listFooter = (
     <View style={styles.footerContainer}>
-      {/* Offers & Promo Codes Section */}
+      {/* 1. Before You Checkout (Quick-Add Addons Carousel) */}
+      {quickAddRecommendations.length > 0 && (
+        <View style={styles.quickAddSection}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionHeaderLeft}>
+              <Heading level={4}>Before You Checkout</Heading>
+              <Caption color={theme.colors.muted}>Popular snacks & cold mixers</Caption>
+            </View>
+            <Ionicons name="sparkles" size={16} color="#f59e0b" />
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickAddScroll}
+          >
+            {quickAddRecommendations.map((product) => (
+              <QuickAddCard
+                key={product.id}
+                product={product}
+                onAdd={handleQuickAdd}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* 2. Delivery Instructions */}
+      <Card style={styles.instructionCard} padding="md">
+        <View style={styles.cardHeaderRow}>
+          <Ionicons name="hand-left-outline" size={18} color={theme.colors.secondary} />
+          <Heading level={4} style={styles.cardHeaderTitle}>
+            Delivery Instructions
+          </Heading>
+        </View>
+
+        <View style={styles.instructionsGrid}>
+          {DELIVERY_INSTRUCTIONS.map((inst) => {
+            const isSelected = selectedInstruction === inst.id;
+            return (
+              <TouchableOpacity
+                key={inst.id}
+                onPress={() => handleInstructionToggle(inst.id)}
+                style={[
+                  styles.instructionPill,
+                  {
+                    backgroundColor: isSelected ? theme.colors.secondarySoft : theme.colors.surfaceSunken,
+                    borderColor: isSelected ? theme.colors.secondary : theme.colors.border,
+                  },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={inst.icon}
+                  size={14}
+                  color={isSelected ? theme.colors.secondary : theme.colors.muted}
+                />
+                <Text
+                  weight={isSelected ? '700' : '600'}
+                  size={11}
+                  color={isSelected ? theme.colors.secondary : theme.colors.foreground}
+                >
+                  {inst.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </Card>
+
+      {/* 3. Delivery Partner Tip */}
+      <Card style={styles.tipCard} padding="md">
+        <View style={styles.cardHeaderRow}>
+          <Ionicons name="heart-outline" size={18} color={theme.colors.secondary} />
+          <Heading level={4} style={styles.cardHeaderTitle}>
+            Tip Delivery Partner
+          </Heading>
+        </View>
+        <Caption color={theme.colors.muted} style={styles.tipSubtitle}>
+          100% of your tip goes directly to your Kathmandu delivery rider.
+        </Caption>
+
+        <View style={styles.tipOptionsRow}>
+          {RIDER_TIP_OPTIONS.map((tip) => {
+            const isSelected = selectedTip === tip;
+            return (
+              <TouchableOpacity
+                key={tip}
+                onPress={() => handleTipSelect(tip)}
+                style={[
+                  styles.tipPill,
+                  {
+                    backgroundColor: isSelected ? theme.colors.secondary : theme.colors.surfaceSunken,
+                    borderColor: isSelected ? theme.colors.secondary : theme.colors.border,
+                  },
+                ]}
+                activeOpacity={0.8}
+              >
+                <Text
+                  weight="800"
+                  size={12}
+                  color={isSelected ? '#FFFFFF' : theme.colors.foreground}
+                >
+                  {tip === 0 ? 'No Tip' : `रू ${tip}`}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </Card>
+
+      {/* 4. Offers & Promo Codes Section */}
       <Card style={styles.promoCard} padding="md">
-        <View style={styles.promoHeaderRow}>
+        <View style={styles.cardHeaderRow}>
           <Ionicons name="pricetag-outline" size={18} color={theme.colors.secondary} />
-          <Heading level={4} style={styles.promoTitle}>
+          <Heading level={4} style={styles.cardHeaderTitle}>
             Coupons & Offers
           </Heading>
         </View>
@@ -343,7 +618,7 @@ export const CartScreen: React.FC = () => {
         )}
       </Card>
 
-      {/* Transparent Bill Details Breakdown Card */}
+      {/* 5. Transparent Bill Details Breakdown Card */}
       <Card style={styles.billCard} padding="md">
         <Heading level={4} style={styles.billTitle}>
           Bill Summary
@@ -392,6 +667,14 @@ export const CartScreen: React.FC = () => {
           )}
         </View>
 
+        {/* Rider Tip */}
+        {selectedTip > 0 ? (
+          <View style={styles.billRow}>
+            <Text color={theme.colors.muted}>Delivery Partner Tip</Text>
+            <PriceText amount={selectedTip} size="sm" />
+          </View>
+        ) : null}
+
         {/* Taxes & Handling */}
         <View style={styles.billRow}>
           <Text color={theme.colors.muted}>Taxes & Handling</Text>
@@ -408,11 +691,11 @@ export const CartScreen: React.FC = () => {
             <Heading level={3}>To Pay</Heading>
             <Caption color={theme.colors.muted}>Inclusive of all taxes</Caption>
           </View>
-          <PriceText amount={summary.totalAmount} size="lg" />
+          <PriceText amount={finalPayAmount} size="lg" />
         </View>
       </Card>
 
-      {/* Total Savings Celebration Card */}
+      {/* 6. Total Savings Celebration Card */}
       {summary.totalSavings > 0 ? (
         <Card
           variant="elevated"
@@ -428,35 +711,161 @@ export const CartScreen: React.FC = () => {
         </Card>
       ) : null}
 
-      {/* Checkout Button */}
-      <Button
-        title={isValidating ? 'Validating Live Prices...' : `Proceed to Checkout • ${formatNPR(summary.totalAmount)}`}
-        variant="secondary"
-        size="lg"
-        fullWidth
-        loading={isValidating}
-        onPress={handleProceedToCheckout}
-        style={styles.checkoutButton}
-      />
+      {/* 7. Cancellation Guarantee */}
+      <View
+        style={[
+          styles.guaranteeCard,
+          {
+            backgroundColor: theme.colors.surfaceSunken,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Ionicons name="shield-checkmark" size={18} color={theme.colors.secondary} />
+        <View style={styles.guaranteeTextCol}>
+          <Text weight="700" size={12} color={theme.colors.foreground}>
+            100% Replacement & Refund Guarantee
+          </Text>
+          <Caption color={theme.colors.muted}>
+            Free cancellation within 1 min of order before dispatch. 100% genuine products.
+          </Caption>
+        </View>
+      </View>
     </View>
   );
 
+  // Sticky Floating Bottom Checkout Bar (Dock)
+  const stickyBottomCheckoutBar = (
+    <View
+      style={[
+        styles.stickyDock,
+        {
+          backgroundColor: theme.colors.surfaceRaised,
+          borderTopColor: theme.colors.border,
+        },
+      ]}
+    >
+      <View style={styles.dockLeft}>
+        <View style={styles.dockPriceRow}>
+          <PriceText amount={finalPayAmount} size="lg" />
+          {summary.totalSavings > 0 && (
+            <Badge label={`SAVED ${formatNPR(summary.totalSavings)}`} variant="success" size="sm" style={styles.dockSavedBadge} />
+          )}
+        </View>
+        <Caption color={theme.colors.muted} numberOfLines={1}>
+          {summary.totalItemCount} {summary.totalItemCount === 1 ? 'item' : 'items'} • To {addressLabel}
+        </Caption>
+      </View>
+
+      <TouchableOpacity
+        onPress={handleProceedToCheckout}
+        disabled={isValidating}
+        style={[
+          styles.dockButton,
+          { backgroundColor: theme.colors.secondary },
+          isValidating && { opacity: 0.7 },
+        ]}
+        activeOpacity={0.85}
+      >
+        <Text weight="800" size={14} color="#FFFFFF">
+          {isValidating ? 'Validating...' : 'Proceed ➔'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // -------------------------------------------------------------
+  // EMPTY BASKET STATE WITH RECOMMENDATIONS
+  // -------------------------------------------------------------
   if (items.length === 0) {
     return (
-      <ScreenWrapper headerComponent={<Header title="Your Basket" />}>
-        <EmptyState
-          icon="cart-outline"
-          title="Your basket is empty"
-          description="Add fresh groceries, snacks, cold beverages, and items to get ultra-fast 10-min delivery."
-          actionTitle="Explore Catalog"
-          onAction={() => {
-            navigation.navigate('MainTabs' as never, { screen: 'HomeTab' } as never);
-          }}
-        />
+      <ScreenWrapper
+        scrollable
+        headerComponent={<Header title="Your Basket" />}
+        contentContainerStyle={styles.emptyContainer}
+      >
+        <View style={styles.emptyHero}>
+          <View style={[styles.emptyIconCircle, { backgroundColor: theme.colors.secondarySoft }]}>
+            <Ionicons name="bag-handle-outline" size={48} color={theme.colors.secondary} />
+          </View>
+          <Heading level={2} style={styles.emptyTitle}>
+            Your basket is empty
+          </Heading>
+          <Caption color={theme.colors.muted} align="center" style={styles.emptySubtitle}>
+            Fill your basket with drinks, snacks, mixers, or cigarettes to get ultra-fast 10-min delivery.
+          </Caption>
+
+          <Button
+            title="Explore Catalog"
+            variant="secondary"
+            size="md"
+            onPress={() => {
+              navigation.navigate('MainTabs', { screen: 'HomeTab' });
+            }}
+            style={styles.emptyExploreBtn}
+          />
+        </View>
+
+        {/* Popular Essentials in Kathmandu */}
+        <View style={styles.emptyRecsSection}>
+          <View style={styles.sectionHeaderRow}>
+            <Heading level={4}>Popular in Kathmandu</Heading>
+            <Caption color={theme.colors.secondary} bold>
+              Hot Deals
+            </Caption>
+          </View>
+
+          <View style={styles.emptyRecsGrid}>
+            {emptyStateRecommendations.map((product) => (
+              <View
+                key={product.id}
+                style={[
+                  styles.emptyRecCard,
+                  {
+                    backgroundColor: theme.colors.surfaceRaised,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+              >
+                <View style={styles.emptyRecImageWrap}>
+                  <OptimizedImage
+                    uri={product.thumbnailUrl || (product.images && product.images[0])}
+                    width={80}
+                    height={80}
+                    style={styles.emptyRecImage}
+                    fallbackIcon="cube-outline"
+                  />
+                </View>
+                <View style={styles.emptyRecInfo}>
+                  <Text weight="600" size={12} numberOfLines={1}>
+                    {product.name}
+                  </Text>
+                  <Caption size={10} color={theme.colors.muted} numberOfLines={1}>
+                    {product.unit}
+                  </Caption>
+                  <View style={styles.emptyRecFooter}>
+                    <PriceText amount={product.price} size="sm" />
+                    <TouchableOpacity
+                      onPress={() => handleQuickAdd(product)}
+                      style={[styles.quickAddBtn, { backgroundColor: theme.colors.secondarySoft, borderColor: theme.colors.secondary }]}
+                    >
+                      <Text weight="800" size={11} color={theme.colors.secondary}>
+                        + Add
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
       </ScreenWrapper>
     );
   }
 
+  // -------------------------------------------------------------
+  // ACTIVE BASKET VIEW
+  // -------------------------------------------------------------
   return (
     <ScreenWrapper
       headerComponent={
@@ -464,7 +873,7 @@ export const CartScreen: React.FC = () => {
           title="Your Basket"
           subtitle={`${summary.totalItemCount} ${summary.totalItemCount === 1 ? 'item' : 'items'}`}
           rightAction={
-            <TouchableOpacity onPress={clearCart}>
+            <TouchableOpacity onPress={handleClearCart}>
               <Caption color={theme.colors.error} bold>
                 Clear All
               </Caption>
@@ -472,6 +881,7 @@ export const CartScreen: React.FC = () => {
           }
         />
       }
+      footerComponent={stickyBottomCheckoutBar}
       style={styles.container}
     >
       <OfflineBanner />
@@ -479,13 +889,8 @@ export const CartScreen: React.FC = () => {
         data={items}
         keyExtractor={cartKeyExtractor}
         renderItem={renderCartItem}
-        getItemLayout={cartGetItemLayout}
         ListHeaderComponent={listHeader}
         ListFooterComponent={listFooter}
-        initialNumToRender={6}
-        maxToRenderPerBatch={6}
-        windowSize={5}
-        removeClippedSubviews
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
       />
@@ -495,13 +900,46 @@ export const CartScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     paddingHorizontal: 12,
   },
   listContent: {
     paddingVertical: 8,
+    paddingBottom: 24,
   },
   headerSection: {
+    marginBottom: 10,
+  },
+  locationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 14,
+    borderWidth: 1,
     marginBottom: 8,
+  },
+  locationIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(15, 118, 110, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  locationDetails: {
+    flex: 1,
+    minWidth: 0,
+  },
+  locationTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  changeAddrBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginLeft: 6,
   },
   freeDeliveryCard: {
     borderRadius: 12,
@@ -544,6 +982,7 @@ const styles = StyleSheet.create({
   },
   itemDetails: {
     flex: 1,
+    marginRight: 8,
   },
   unitText: {
     marginTop: 1,
@@ -553,9 +992,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
     gap: 6,
-  },
-  mrpText: {
-    marginLeft: 2,
   },
   saveBadge: {
     marginLeft: 4,
@@ -585,17 +1021,109 @@ const styles = StyleSheet.create({
   footerContainer: {
     marginTop: 8,
   },
-  promoCard: {
+  quickAddSection: {
     marginBottom: 14,
-    borderRadius: 16,
   },
-  promoHeaderRow: {
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  sectionHeaderLeft: {
+    flex: 1,
+  },
+  quickAddScroll: {
+    gap: 10,
+    paddingVertical: 4,
+  },
+  quickAddCard: {
+    width: 140,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+    padding: 8,
+  },
+  quickAddImageWrap: {
+    width: '100%',
+    height: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  quickAddImage: {
+    width: 60,
+    height: 60,
+  },
+  quickAddInfo: {
+    gap: 2,
+  },
+  quickAddTitle: {
+    lineHeight: 15,
+  },
+  quickAddFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  quickAddBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
   },
-  promoTitle: {
+  cardHeaderTitle: {
     marginLeft: 8,
+  },
+  instructionCard: {
+    marginBottom: 12,
+    borderRadius: 16,
+  },
+  instructionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  instructionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  tipCard: {
+    marginBottom: 12,
+    borderRadius: 16,
+  },
+  tipSubtitle: {
+    marginBottom: 10,
+    marginTop: -4,
+  },
+  tipOptionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  tipPill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  promoCard: {
+    marginBottom: 12,
+    borderRadius: 16,
   },
   couponInputRow: {
     flexDirection: 'row',
@@ -647,7 +1175,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   billCard: {
-    marginBottom: 14,
+    marginBottom: 12,
     borderRadius: 16,
   },
   billTitle: {
@@ -678,7 +1206,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   savingsCard: {
-    marginBottom: 16,
+    marginBottom: 12,
     borderRadius: 12,
   },
   savingsRow: {
@@ -689,7 +1217,113 @@ const styles = StyleSheet.create({
   savingsText: {
     marginLeft: 8,
   },
-  checkoutButton: {
-    marginBottom: 24,
+  guaranteeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 16,
+    gap: 10,
+  },
+  guaranteeTextCol: {
+    flex: 1,
+    gap: 2,
+  },
+  stickyDock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+  },
+  dockLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  dockPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dockSavedBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  dockButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyContainer: {
+    padding: 16,
+    alignItems: 'center',
+    paddingBottom: 32,
+  },
+  emptyHero: {
+    alignItems: 'center',
+    marginVertical: 20,
+    maxWidth: 320,
+  },
+  emptyIconCircle: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  emptyExploreBtn: {
+    minWidth: 160,
+  },
+  emptyRecsSection: {
+    width: '100%',
+    marginTop: 16,
+  },
+  emptyRecsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 10,
+    marginTop: 8,
+  },
+  emptyRecCard: {
+    width: '48.5%',
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+    padding: 8,
+  },
+  emptyRecImageWrap: {
+    width: '100%',
+    height: 80,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  emptyRecImage: {
+    width: '100%',
+    height: '100%',
+  },
+  emptyRecInfo: {
+    gap: 2,
+  },
+  emptyRecFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
   },
 });
