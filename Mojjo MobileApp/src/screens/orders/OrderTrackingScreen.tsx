@@ -1,40 +1,66 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Linking, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Header } from '../../components/layout/Header';
-import { Heading, Text, Caption, PriceText } from '../../components/common/Typography';
+import { Heading, Text, Caption } from '../../components/common/Typography';
 import { Card } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
+import { LiveDeliveryMap } from '../../components/delivery/LiveDeliveryMap';
+import { InAppOrderStatusBanner } from '../../components/delivery/InAppOrderStatusBanner';
+import { useOrderLiveTracking } from '../../hooks/useOrderLiveTracking';
+import { ORDER_STAGE_MILESTONES } from '../../services/delivery/orderNotificationManager';
 import { useTheme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
-import { formatNPR } from '../../utils/currency';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OrderTracking'>;
-
-const TRACKING_STEPS = [
-  { key: 'placed', title: 'Order Confirmed', time: '11:05 AM', done: true },
-  { key: 'preparing', title: 'Items Packed Fresh (Dark Store)', time: '11:07 AM', done: true },
-  { key: 'delivery', title: 'Rider is on the way 🛵', time: '11:09 AM', active: true, done: false },
-  { key: 'arrived', title: 'Delivered at Doorstep', time: 'Est. 11:15 AM', done: false },
-];
 
 export const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
   const { theme } = useTheme();
   const orderId = route.params?.orderId || 'MJ-8921';
 
+  const {
+    trackingState,
+    currentStageIndex,
+    activeNotification,
+    dismissNotification,
+    simulateNextStage,
+    toggleSimulation,
+  } = useOrderLiveTracking({
+    orderId,
+  });
+
   const handleCallRider = () => {
-    Linking.openURL('tel:+9779812345678');
+    Linking.openURL('tel:+9779801122334');
   };
+
+  const handleSupportChat = () => {
+    Linking.openURL(
+      'https://wa.me/9779800000000?text=Hi%20Mojjo%20Support%2C%20I%20need%20help%20with%20order%20' +
+        orderId
+    );
+  };
+
+  const isDelivered = currentStageIndex === 5;
+  const isNearDoor = currentStageIndex === 4;
 
   return (
     <ScreenWrapper
-      headerComponent={<Header showBack onBack={() => navigation.goBack()} title="Live Order Tracking" />}
+      headerComponent={
+        <Header showBack onBack={() => navigation.goBack()} title="Live Order Tracking" />
+      }
       scrollable
       contentContainerStyle={styles.container}
     >
+      {/* Real-Time In-App Order Status Notification Banner */}
+      <InAppOrderStatusBanner
+        stage={activeNotification}
+        onDismiss={dismissNotification}
+        orderNumber={orderId}
+      />
+
       {/* ETA Header Card */}
       <Card
         variant="elevated"
@@ -42,23 +68,131 @@ export const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
         padding="lg"
       >
         <View style={styles.etaHeaderRow}>
-          <View>
-            <Badge label="⚡ 10-MIN FLASH DELIVERY" variant="accent" size="sm" style={styles.flashBadge} />
+          <View style={styles.etaTextCol}>
+            <Badge
+              label={
+                isDelivered
+                  ? '🎉 ORDER COMPLETED'
+                  : isNearDoor
+                  ? '🏠 AT YOUR DOORSTEP'
+                  : '⚡ 10-MIN FLASH DELIVERY'
+              }
+              variant={isDelivered ? 'success' : isNearDoor ? 'warning' : 'accent'}
+              size="sm"
+              style={styles.flashBadge}
+            />
             <Heading level={1} color={theme.colors.onPrimary} style={styles.etaTitle}>
-              8-10 Mins
+              {isDelivered
+                ? 'Delivered 🎉'
+                : isNearDoor
+                ? 'At Doorstep 🏠'
+                : `${trackingState.estimatedMinutes} Mins`}
             </Heading>
             <Caption color={theme.colors.onPrimaryMuted}>
-              Order #{orderId} • Delivering to Jhamsikhel
+              Order #{orderId} • {isDelivered ? 'Delivered successfully' : `${trackingState.distanceRemainingKm} km away from doorstep`}
             </Caption>
           </View>
 
           <View style={[styles.etaIconCircle, { backgroundColor: theme.colors.primaryLight }]}>
-            <Ionicons name="bicycle" size={36} color={theme.colors.accent} />
+            <Ionicons
+              name={isDelivered ? 'checkmark-circle' : isNearDoor ? 'home' : 'bicycle'}
+              size={36}
+              color={theme.colors.accent}
+            />
           </View>
         </View>
       </Card>
 
-      {/* Courier Info Card */}
+      {/* Real-Time Interactive Live Delivery Map with Moving Rider */}
+      <LiveDeliveryMap
+        trackingState={trackingState}
+        onToggleSimulation={toggleSimulation}
+        orderNumber={orderId}
+        driverName="Bikash Maharjan"
+      />
+
+      {/* Interactive Order Status Simulator Bar */}
+      <Card style={styles.simulatorCard} padding="md">
+        <View style={styles.simulatorHeaderRow}>
+          <View style={styles.simTitleCol}>
+            <View style={styles.simBadgeRow}>
+              <Ionicons name="notifications" size={16} color={theme.colors.accent} />
+              <Text weight="700" size={13} color={theme.colors.foreground}>
+                Live Order-Status Notifications
+              </Text>
+            </View>
+            <Caption color={theme.colors.muted}>
+              Test automatic stage alerts as order progresses
+            </Caption>
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={simulateNextStage}
+            style={[styles.simStepButton, { backgroundColor: theme.colors.accent }]}
+          >
+            <Text weight="800" size={12} color="#0F172A">
+              Next Stage ➔
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Horizontal Mini Stage Indicator Pills */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.stagePillsRow}>
+          {ORDER_STAGE_MILESTONES.map((m, idx) => {
+            const isCurrent = idx === currentStageIndex;
+            const isPassed = idx < currentStageIndex;
+
+            return (
+              <View
+                key={m.key}
+                style={[
+                  styles.miniStagePill,
+                  isCurrent && {
+                    backgroundColor: theme.colors.accentSoft,
+                    borderColor: theme.colors.accent,
+                  },
+                  isPassed && {
+                    backgroundColor: theme.colors.surfaceRaised,
+                    borderColor: theme.colors.success,
+                  },
+                  !isCurrent && !isPassed && {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={isPassed ? 'checkmark-circle' : (m.icon as any)}
+                  size={12}
+                  color={
+                    isPassed
+                      ? theme.colors.success
+                      : isCurrent
+                      ? theme.colors.accent
+                      : theme.colors.muted
+                  }
+                  style={styles.miniPillIcon}
+                />
+                <Caption
+                  bold={isCurrent}
+                  color={
+                    isPassed
+                      ? theme.colors.success
+                      : isCurrent
+                      ? theme.colors.foreground
+                      : theme.colors.muted
+                  }
+                >
+                  {m.title}
+                </Caption>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </Card>
+
+      {/* Courier Partner Info Card */}
       <Card style={styles.courierCard} padding="md">
         <View style={styles.courierRow}>
           <View
@@ -71,12 +205,15 @@ export const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
 
           <View style={styles.courierDetails}>
-            <Text weight="700" size={15}>
-              Bikash Maharjan
-            </Text>
+            <View style={styles.riderTitleRow}>
+              <Text weight="700" size={15}>
+                Bikash Maharjan
+              </Text>
+              <Badge label="GPS Active" variant="success" size="sm" style={styles.gpsBadge} />
+            </View>
             <Caption color={theme.colors.muted}>Delivery Partner • ⭐ 4.9 (520+ orders)</Caption>
             <Caption color={theme.colors.secondary} bold>
-              Vehicle: Ba 92 Pa 4321
+              Vehicle: Yamaha FZ-S (Ba 92 Pa 4321)
             </Caption>
           </View>
 
@@ -92,53 +229,75 @@ export const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
       </Card>
 
-      {/* Progress Timeline Stepper */}
+      {/* Full 6-Stage Lifecycle Timeline Stepper */}
       <Card style={styles.timelineCard} padding="lg">
         <Heading level={4} style={styles.timelineHeader}>
-          Order Status
+          Order Status Lifecycle
         </Heading>
 
         <View style={styles.timelineContainer}>
-          {TRACKING_STEPS.map((step, idx) => {
-            const isLast = idx === TRACKING_STEPS.length - 1;
+          {ORDER_STAGE_MILESTONES.map((step, idx) => {
+            const isDone = idx < currentStageIndex || (idx === currentStageIndex && currentStageIndex === 5);
+            const isActive = idx === currentStageIndex && currentStageIndex !== 5;
+            const isLast = idx === ORDER_STAGE_MILESTONES.length - 1;
+
             return (
               <View key={step.key} style={styles.stepRow}>
                 <View style={styles.stepLeftCol}>
                   <View
                     style={[
                       styles.stepDot,
-                      step.done && { backgroundColor: theme.colors.success },
-                      step.active && {
+                      isDone && { backgroundColor: theme.colors.success },
+                      isActive && {
                         backgroundColor: theme.colors.accent,
                         borderWidth: 3,
                         borderColor: theme.colors.accentSoft,
                       },
-                      !step.done && !step.active && { backgroundColor: theme.colors.border },
+                      !isDone && !isActive && { backgroundColor: theme.colors.border },
                     ]}
                   >
-                    {step.done ? (
+                    {isDone ? (
                       <Ionicons name="checkmark" size={12} color="#FFFFFF" />
-                    ) : null}
+                    ) : (
+                      <Ionicons
+                        name={step.icon as any}
+                        size={10}
+                        color={isActive ? '#0F172A' : '#94A3B8'}
+                      />
+                    )}
                   </View>
                   {!isLast ? (
                     <View
                       style={[
                         styles.stepLine,
-                        { backgroundColor: step.done ? theme.colors.success : theme.colors.border },
+                        { backgroundColor: isDone ? theme.colors.success : theme.colors.border },
                       ]}
                     />
                   ) : null}
                 </View>
 
                 <View style={styles.stepContent}>
-                  <Text
-                    weight={step.active ? '700' : '600'}
-                    size={14}
-                    color={step.active ? theme.colors.foreground : theme.colors.muted}
-                  >
-                    {step.title}
-                  </Text>
-                  <Caption color={theme.colors.subtle}>{step.time}</Caption>
+                  <View style={styles.stepTitleRow}>
+                    <Text
+                      weight={isActive ? '700' : isDone ? '600' : '500'}
+                      size={14}
+                      color={
+                        isActive
+                          ? theme.colors.foreground
+                          : isDone
+                          ? theme.colors.foreground
+                          : theme.colors.muted
+                      }
+                    >
+                      {step.title}
+                    </Text>
+                    <Caption color={isActive ? theme.colors.accent : theme.colors.subtle}>
+                      {step.timeEstimate}
+                    </Caption>
+                  </View>
+                  <Caption color={isActive ? theme.colors.foreground : theme.colors.muted}>
+                    {step.subtitle}
+                  </Caption>
                 </View>
               </View>
             );
@@ -155,7 +314,7 @@ export const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
               Delivery Address
             </Text>
             <Caption color={theme.colors.muted}>
-              Jhamsikhel Rd, Ward 3, Lalitpur (Near St. Mary's School)
+              House #14, Jhamsikhel Road, Ward 3, Lalitpur (Near St. Mary's School)
             </Caption>
           </View>
         </View>
@@ -175,13 +334,13 @@ export const OrderTrackingScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
       </Card>
 
-      {/* Need Help CTA */}
+      {/* Help & Support CTA */}
       <Button
-        title="Need Help with this Order? 💬"
+        title="Need Help with this Delivery? 💬"
         variant="ghost"
         size="md"
         fullWidth
-        onPress={() => {}}
+        onPress={handleSupportChat}
         style={styles.helpButton}
       />
     </ScreenWrapper>
@@ -201,18 +360,68 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  etaTextCol: {
+    flex: 1,
+    marginRight: 8,
+  },
   flashBadge: {
     marginBottom: 8,
+    alignSelf: 'flex-start',
   },
   etaTitle: {
     marginBottom: 4,
   },
   etaIconCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  simulatorCard: {
+    marginBottom: 16,
+    borderRadius: 16,
+  },
+  simulatorHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  simTitleCol: {
+    flex: 1,
+    marginRight: 8,
+  },
+  simBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  simStepButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  stagePillsRow: {
+    flexDirection: 'row',
+  },
+  miniStagePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  miniPillIcon: {
+    marginRight: 4,
   },
   courierCard: {
     marginBottom: 16,
@@ -232,6 +441,14 @@ const styles = StyleSheet.create({
   },
   courierDetails: {
     flex: 1,
+  },
+  riderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  gpsBadge: {
+    marginLeft: 6,
   },
   callButton: {
     width: 44,
@@ -261,9 +478,9 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   stepDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
@@ -276,6 +493,12 @@ const styles = StyleSheet.create({
   stepContent: {
     flex: 1,
     paddingBottom: 16,
+  },
+  stepTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
   },
   summaryCard: {
     marginBottom: 16,

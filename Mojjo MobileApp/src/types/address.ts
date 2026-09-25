@@ -14,6 +14,8 @@ export interface Address {
   isDefault: boolean;
   isServiceable: boolean;
   etaMinutes: number;
+  latitude?: number;
+  longitude?: number;
   createdAt: string;
   updatedAt?: string;
 }

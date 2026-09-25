@@ -100,3 +100,20 @@ export interface RiderProfile {
   cashLimitNpr: number;
   digitalCollectedNpr: number;
 }
+
+export interface GpsLocation {
+  latitude: number;
+  longitude: number;
+  heading?: number;
+  speedKmH?: number;
+  accuracyMeters?: number;
+  timestamp: string;
+}
+
+export interface GpsPublishingState {
+  isPublishing: boolean;
+  mode: 'device_gps' | 'simulation';
+  lastLocation: GpsLocation | null;
+  serverSynced: boolean;
+  lastSyncError: string | null;
+}

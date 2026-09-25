@@ -104,6 +104,7 @@ public static class DependencyInjection
 
         // Real-Time WebSockets & Live Order Tracking
         services.AddSignalR();
+        services.AddSingleton<Application.Interfaces.Services.IDriverLocationTrackerService, Services.DriverLocationTrackerService>();
         services.AddScoped<Application.Interfaces.Hubs.IOrderNotificationService, Services.SignalROrderNotificationService>();
 
         // System-Wide Audit Logging Service

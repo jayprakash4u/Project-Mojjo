@@ -30,6 +30,7 @@ import { Product } from '../../types/product';
 import { useToast } from '../../components/feedback/ToastContext';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { useProductStore } from '../../store/productStore';
+import { useAddressStore } from '../../store/addressStore';
 import { HapticsService } from '../../services/haptics';
 
 interface CategoryItemData {
@@ -282,9 +283,16 @@ export const HomeScreen: React.FC = () => {
   const { showSuccess } = useToast();
   const addItem = useCartStore((s) => s.addItem);
   const selectedAddress = useSelectedAddress();
+  const detectAndApplyCurrentLocation = useAddressStore((s) => s.detectAndApplyCurrentLocation);
   const products = useProductStore((s) => s.products);
 
-  // Rotating search placeholder — cycles through one category name at a time.
+  // Automatically detect customer GPS location silently when app opens
+  useEffect(() => {
+    detectAndApplyCurrentLocation().catch(() => {
+      // Gracefully fall back to stored/default address if GPS is disabled or denied
+    });
+  }, [detectAndApplyCurrentLocation]);
+
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const placeholderFade = useRef(new Animated.Value(1)).current;
 
@@ -427,26 +435,33 @@ export const HomeScreen: React.FC = () => {
     <ScreenWrapper scrollable contentContainerStyle={styles.container}>
       <OfflineBanner />
 
-      {/* 1. Top Location Bar */}
+      {/* 1. Top Location Bar (Auto-detected location, tap to switch address) */}
       <View style={styles.topBar}>
-        <View style={styles.locationContainer}>
-          <TouchableOpacity
-            style={styles.addressRow}
-            onPress={() => navigation.navigate('SavedAddresses')}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="location-sharp" size={15} color={theme.colors.foreground} />
-            <Text
-              weight="700"
-              size={14}
-              numberOfLines={1}
-              style={styles.addressText}
-            >
-              {addressDisplay}
-            </Text>
-            <Ionicons name="chevron-down" size={14} color={theme.colors.foreground} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.addressRow}
+          onPress={() => navigation.navigate('SavedAddresses')}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.addressPinCircle, { backgroundColor: theme.colors.accentSoft }]}>
+            <Ionicons name="location" size={16} color={theme.colors.accent} />
+          </View>
+          <View style={styles.addressTextColumn}>
+            <View style={styles.addressSubRow}>
+              <Text
+                weight="800"
+                size={14}
+                numberOfLines={1}
+                style={styles.addressText}
+              >
+                {addressDisplay}
+              </Text>
+              <Ionicons name="chevron-down" size={13} color={theme.colors.foreground} />
+            </View>
+            <Caption color={theme.colors.success} style={styles.flashEtaText}>
+              ⚡ 10-Min Flash Delivery Active
+            </Caption>
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* 2. Quick Search Bar */}
@@ -804,6 +819,7 @@ export const HomeScreen: React.FC = () => {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.horizontalListContent}
       />
+
     </ScreenWrapper>
   );
 };
@@ -816,19 +832,36 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingVertical: 6,
   },
-  locationContainer: {
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
-  addressRow: {
+  addressPinCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  addressTextColumn: {
+    flex: 1,
+  },
+  addressSubRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
   addressText: {
-    marginRight: 2,
+    maxWidth: '85%',
+  },
+  flashEtaText: {
+    fontWeight: '700',
+    fontSize: 10,
+    marginTop: 1,
   },
   searchBar: {
     flexDirection: 'row',
@@ -911,7 +944,7 @@ const styles = StyleSheet.create({
     width: '38%',
   },
   bannerImageScrim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.08)',
   },
   bannerDotsRow: {

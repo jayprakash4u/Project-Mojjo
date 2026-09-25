@@ -21,17 +21,20 @@ public class OrdersController : ControllerBase
     private readonly ICurrentUserService _currentUserService;
     private readonly IOrderNotificationService _orderNotificationService;
     private readonly IAuditService _auditService;
+    private readonly IDriverLocationTrackerService _locationTracker;
 
     public OrdersController(
         IOrderService orderService, 
         ICurrentUserService currentUserService,
         IOrderNotificationService orderNotificationService,
-        IAuditService auditService)
+        IAuditService auditService,
+        IDriverLocationTrackerService locationTracker)
     {
         _orderService = orderService;
         _currentUserService = currentUserService;
         _orderNotificationService = orderNotificationService;
         _auditService = auditService;
+        _locationTracker = locationTracker;
     }
 
     /// <summary>
@@ -165,5 +168,48 @@ public class OrdersController : ControllerBase
         }, cancellationToken);
 
         return Ok(ApiResponse<OrderDto>.Ok(order, "Status updated successfully."));
+    }
+
+    /// <summary>
+    /// Broadcast and update real-time GPS location coordinates of the assigned delivery agent.
+    /// </summary>
+    [Authorize(Roles = $"{AppRoles.Admin},{AppRoles.Manager},{AppRoles.DeliveryAgent}")]
+    [HttpPost("{id}/driver-location")]
+    public async Task<ActionResult<ApiResponse<DriverLocationUpdateDto>>> UpdateDriverLocation(
+        string id,
+        [FromBody] DriverLocationUpdateDto location,
+        CancellationToken cancellationToken)
+    {
+        if (location == null)
+        {
+            return BadRequest(ApiResponse<DriverLocationUpdateDto>.Fail("Location data is required."));
+        }
+
+        location.OrderId = id;
+        location.UpdatedAt = DateTime.UtcNow;
+
+        if (string.IsNullOrEmpty(location.DriverId) && !string.IsNullOrEmpty(_currentUserService.UserId))
+        {
+            location.DriverId = _currentUserService.UserId;
+        }
+
+        // Cache in-memory
+        _locationTracker.UpdateDriverLocation(location);
+
+        // Broadcast to SignalR tracking stream
+        await _orderNotificationService.NotifyDriverLocationUpdatedAsync(location, cancellationToken);
+
+        return Ok(ApiResponse<DriverLocationUpdateDto>.Ok(location, "Driver location updated."));
+    }
+
+    /// <summary>
+    /// Get the latest known live GPS coordinates for an active order.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("{id}/driver-location")]
+    public ActionResult<ApiResponse<DriverLocationUpdateDto?>> GetDriverLocation(string id)
+    {
+        var location = _locationTracker.GetDriverLocation(id);
+        return Ok(ApiResponse<DriverLocationUpdateDto?>.Ok(location));
     }
 }

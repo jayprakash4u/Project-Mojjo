@@ -5,11 +5,14 @@ import {
   DeliveryStep,
   RiderProfile,
   DoorstepPaymentMode,
+  GpsLocation,
+  GpsPublishingState,
 } from '../types/rider';
+import { deliveryGpsService } from './deliveryGpsService';
 
 export const INITIAL_RIDER_PROFILE: RiderProfile = {
   id: 'r-101',
-  name: 'Rohan Shrestha',
+  name: 'Bikash Maharjan',
   phone: '9801122334',
   rating: 4.94,
   totalTrips: 418,
@@ -113,6 +116,7 @@ interface RiderStoreState {
   profile: RiderProfile;
   activeOrder: ActiveDeliveryOrder | null;
   completedOrders: ActiveDeliveryOrder[];
+  gpsState: GpsPublishingState;
 
   toggleDutyStatus: () => void;
   acceptOrder: () => void;
@@ -122,6 +126,9 @@ interface RiderStoreState {
   verifyAllItems: () => void;
   completeDoorstepDelivery: (params: CompletePaymentParams) => void;
   simulateNewOrder: () => void;
+  startGpsPublishing: (mode?: 'device_gps' | 'simulation') => void;
+  stopGpsPublishing: () => void;
+  updateGpsLocation: (loc: GpsLocation, synced: boolean) => void;
   resetAll: () => void;
 }
 
@@ -131,6 +138,13 @@ export const useRiderStore = create<RiderStoreState>()(
       profile: INITIAL_RIDER_PROFILE,
       activeOrder: SAMPLE_INCOMING_ORDER,
       completedOrders: [],
+      gpsState: {
+        isPublishing: false,
+        mode: 'simulation',
+        lastLocation: null,
+        serverSynced: false,
+        lastSyncError: null,
+      },
 
       toggleDutyStatus: () => {
         const { profile } = get();
@@ -138,7 +152,7 @@ export const useRiderStore = create<RiderStoreState>()(
       },
 
       acceptOrder: () => {
-        const { activeOrder } = get();
+        const { activeOrder, profile } = get();
         if (!activeOrder) return;
         set({
           activeOrder: {
@@ -146,22 +160,32 @@ export const useRiderStore = create<RiderStoreState>()(
             currentStep: 'navigating_to_store',
           },
         });
+
+        // Start GPS tracking automatically & broadcast status
+        get().startGpsPublishing('simulation');
+        deliveryGpsService.broadcastStatusChange('Confirmed', 'Delivery partner accepted your order.');
       },
 
       rejectOrder: () => {
+        get().stopGpsPublishing();
         set({ activeOrder: null });
       },
 
       advanceStep: () => {
-        const { activeOrder } = get();
+        const { activeOrder, startGpsPublishing } = get();
         if (!activeOrder) return;
 
         if (activeOrder.currentStep === 'navigating_to_store') {
           set({ activeOrder: { ...activeOrder, currentStep: 'verifying_at_store' } });
+          deliveryGpsService.broadcastStatusChange('Preparing', 'Items being verified & sealed into thermal bag at dark store.');
         } else if (activeOrder.currentStep === 'verifying_at_store') {
           set({ activeOrder: { ...activeOrder, currentStep: 'out_for_delivery' } });
+          // Ensure GPS streaming is active when departing to customer
+          startGpsPublishing('simulation');
+          deliveryGpsService.broadcastStatusChange('OutForDelivery', 'Delivery partner is on the way to your address 🛵');
         } else if (activeOrder.currentStep === 'out_for_delivery') {
           set({ activeOrder: { ...activeOrder, currentStep: 'arrived_at_customer' } });
+          deliveryGpsService.broadcastStatusChange('NearDoorstep', 'Delivery partner is near your door / gate 🏠');
         }
       },
 
@@ -199,6 +223,9 @@ export const useRiderStore = create<RiderStoreState>()(
       }: CompletePaymentParams) => {
         const { activeOrder, profile, completedOrders } = get();
         if (!activeOrder) return;
+
+        get().stopGpsPublishing();
+        deliveryGpsService.broadcastStatusChange('Delivered', 'Order successfully delivered at doorstep 🎉');
 
         const earned = activeOrder.totalRiderEarningNpr;
 
@@ -240,11 +267,58 @@ export const useRiderStore = create<RiderStoreState>()(
         });
       },
 
+      startGpsPublishing: (mode: 'device_gps' | 'simulation' = 'simulation') => {
+        const { activeOrder, profile } = get();
+        if (!activeOrder) return;
+
+        set((state) => ({
+          gpsState: {
+            ...state.gpsState,
+            isPublishing: true,
+            mode,
+          },
+        }));
+
+        if (mode === 'device_gps') {
+          deliveryGpsService.startLiveGps(activeOrder.id, profile.id, profile.name);
+        } else {
+          deliveryGpsService.startSimulation(activeOrder.id, profile.id, profile.name);
+        }
+      },
+
+      stopGpsPublishing: () => {
+        deliveryGpsService.stopGps();
+        set((state) => ({
+          gpsState: {
+            ...state.gpsState,
+            isPublishing: false,
+          },
+        }));
+      },
+
+      updateGpsLocation: (loc: GpsLocation, synced: boolean) => {
+        set((state) => ({
+          gpsState: {
+            ...state.gpsState,
+            lastLocation: loc,
+            serverSynced: synced,
+          },
+        }));
+      },
+
       resetAll: () => {
+        deliveryGpsService.stopGps();
         set({
           profile: INITIAL_RIDER_PROFILE,
           activeOrder: SAMPLE_INCOMING_ORDER,
           completedOrders: [],
+          gpsState: {
+            isPublishing: false,
+            mode: 'simulation',
+            lastLocation: null,
+            serverSynced: false,
+            lastSyncError: null,
+          },
         });
       },
     }),

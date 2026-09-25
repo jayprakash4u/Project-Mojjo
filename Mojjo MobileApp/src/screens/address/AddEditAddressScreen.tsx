@@ -24,6 +24,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '../../components/feedback/ToastContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { CustomerLocationService, DetectedLocationResult } from '../../services/delivery/customerLocationService';
+import { HapticsService } from '../../services/haptics';
 
 export const AddEditAddressScreen: React.FC = () => {
   const { theme } = useTheme();
@@ -37,12 +39,15 @@ export const AddEditAddressScreen: React.FC = () => {
   const addAddress = useAddressStore((s) => s.addAddress);
   const updateAddress = useAddressStore((s) => s.updateAddress);
 
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [label, setLabel] = useState<AddressLabel>(addressToEdit?.label || 'Home');
   const [recipientName, setRecipientName] = useState(addressToEdit?.recipientName || 'Jay Prakash');
   const [phoneNumber, setPhoneNumber] = useState(addressToEdit?.phoneNumber || '9841234567');
   const [streetAddress, setStreetAddress] = useState(addressToEdit?.streetAddress || '');
   const [area, setArea] = useState(addressToEdit?.area || 'Jhamsikhel');
   const [city, setCity] = useState(addressToEdit?.city || 'Lalitpur');
+  const [latitude, setLatitude] = useState<number | undefined>(addressToEdit?.latitude);
+  const [longitude, setLongitude] = useState<number | undefined>(addressToEdit?.longitude);
   const [landmark, setLandmark] = useState(addressToEdit?.landmark || '');
   const [deliveryInstructions, setDeliveryInstructions] = useState(
     addressToEdit?.deliveryInstructions || ''
@@ -115,6 +120,26 @@ export const AddEditAddressScreen: React.FC = () => {
     }
   };
 
+  const handleDetectGps = async () => {
+    setIsDetectingLocation(true);
+    HapticsService.light();
+    try {
+      const result = await CustomerLocationService.requestAndGetLocation();
+      setStreetAddress(result.streetAddress);
+      setArea(result.area);
+      setCity(result.city);
+      if (result.landmark) setLandmark(result.landmark);
+      setLatitude(result.latitude);
+      setLongitude(result.longitude);
+      HapticsService.success();
+      showSuccess('Location Detected 📍', `Autofilled: ${result.area}, ${result.city}`);
+    } catch {
+      showError('GPS Detection Failed', 'Please enter your address or select a zone below.');
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  };
+
   const labelOptions: { id: AddressLabel; name: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { id: 'Home', name: 'Home', icon: 'home-outline' },
     { id: 'Work', name: 'Work', icon: 'business-outline' },
@@ -134,6 +159,40 @@ export const AddEditAddressScreen: React.FC = () => {
       contentContainerStyle={styles.container}
     >
       <OfflineBanner />
+
+      {/* GPS Location Auto-Detection Button Card */}
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={handleDetectGps}
+        disabled={isDetectingLocation}
+        style={[
+          styles.gpsCard,
+          {
+            backgroundColor: theme.colors.surfaceRaised,
+            borderColor: theme.colors.accent,
+          },
+        ]}
+      >
+        <View style={styles.gpsCardRow}>
+          <View style={[styles.gpsIconCircle, { backgroundColor: theme.colors.accentSoft }]}>
+            <Ionicons name="navigate" size={22} color={theme.colors.accent} />
+          </View>
+
+          <View style={styles.gpsTextCol}>
+            <View style={styles.gpsBadgeRow}>
+              <Text weight="700" size={14} color={theme.colors.foreground}>
+                {isDetectingLocation ? 'Detecting Current Location...' : 'Auto-Detect Current GPS Location'}
+              </Text>
+              <Badge label="FAST" variant="accent" size="sm" />
+            </View>
+            <Caption color={theme.colors.muted}>
+              {isDetectingLocation ? 'Reading GPS coordinates & matching zone...' : 'Tap to find your address using device GPS'}
+            </Caption>
+          </View>
+
+          <Ionicons name="chevron-forward" size={20} color={theme.colors.accent} />
+        </View>
+      </TouchableOpacity>
 
       {/* Address Category Pills */}
       <Heading level={4} style={styles.sectionTitle}>
@@ -333,6 +392,7 @@ export const AddEditAddressScreen: React.FC = () => {
         onPress={handleSave}
         style={styles.saveButton}
       />
+
     </ScreenWrapper>
   );
 };
@@ -341,6 +401,40 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 12,
     paddingBottom: 36,
+  },
+  gpsCard: {
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    marginBottom: 16,
+    marginTop: 4,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  gpsCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  gpsIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  gpsTextCol: {
+    flex: 1,
+    marginRight: 8,
+  },
+  gpsBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
   },
   sectionTitle: {
     marginTop: 10,

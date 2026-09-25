@@ -3,11 +3,14 @@ import { Address } from '../types/address';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { StorageService } from '../services/storage';
 import { DeliveryZoneService } from '../services/delivery/deliveryZoneService';
+import { CustomerLocationService, DetectedLocationResult } from '../services/delivery/customerLocationService';
 import { HapticsService } from '../services/haptics';
 
 export interface AddressState {
   addresses: Address[];
   selectedAddressId?: string;
+  detectedLocation: DetectedLocationResult | null;
+  isDetectingLocation: boolean;
   isLoading: boolean;
 
   // Actions
@@ -18,6 +21,8 @@ export interface AddressState {
   selectAddress: (id: string) => Promise<void>;
   getSelectedAddress: () => Address | undefined;
   loadAddresses: () => Promise<void>;
+  detectAndApplyCurrentLocation: () => Promise<DetectedLocationResult>;
+  applyDetectedLocation: (result: DetectedLocationResult) => Promise<Address>;
 }
 
 const DEFAULT_SEED_ADDRESS: Address = {
@@ -46,6 +51,8 @@ const persistAddresses = async (addresses: Address[], selectedId?: string) => {
 export const useAddressStore = create<AddressState>((set, get) => ({
   addresses: [DEFAULT_SEED_ADDRESS],
   selectedAddressId: DEFAULT_SEED_ADDRESS.id,
+  detectedLocation: null,
+  isDetectingLocation: false,
   isLoading: false,
 
   loadAddresses: async () => {
@@ -81,6 +88,54 @@ export const useAddressStore = create<AddressState>((set, get) => ({
     } catch {
       set({ addresses: [DEFAULT_SEED_ADDRESS], selectedAddressId: DEFAULT_SEED_ADDRESS.id, isLoading: false });
     }
+  },
+
+  detectAndApplyCurrentLocation: async (): Promise<DetectedLocationResult> => {
+    set({ isDetectingLocation: true });
+    try {
+      const result = await CustomerLocationService.requestAndGetLocation();
+      set({ detectedLocation: result, isDetectingLocation: false });
+
+      // Automatically add/apply detected address if GPS permission is granted
+      if (result.permissionGranted) {
+        await get().applyDetectedLocation(result);
+      }
+      return result;
+    } catch (e) {
+      set({ isDetectingLocation: false });
+      throw e;
+    }
+  },
+
+  applyDetectedLocation: async (result: DetectedLocationResult): Promise<Address> => {
+    const currentAddresses = get().addresses;
+    
+    // Check if an address with this area already exists
+    const existing = currentAddresses.find(
+      (a) => a.area.toLowerCase() === result.area.toLowerCase()
+    );
+
+    if (existing) {
+      // Select existing
+      await get().selectAddress(existing.id);
+      return existing;
+    }
+
+    // Add new detected address
+    const newAddr = await get().addAddress({
+      label: 'Other',
+      recipientName: 'Jay Prakash',
+      phoneNumber: '9841234567',
+      streetAddress: result.streetAddress,
+      area: result.area,
+      city: result.city,
+      landmark: result.landmark,
+      isDefault: true,
+      latitude: result.latitude,
+      longitude: result.longitude,
+    });
+
+    return newAddr;
   },
 
   addAddress: async (addressData) => {
